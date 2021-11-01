@@ -1,7 +1,7 @@
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5637033.svg)](https://doi.org/10.5281/zenodo.5637033)
 
 Gnole (Generating functionals for NOn-globaL Evolution)
-============
+=================================================
 
 This repository contains the code used in [arXiv:2111.XXXXX](https://arxiv.org/abs/2111.XXXXX "MC non-global paper").
 
