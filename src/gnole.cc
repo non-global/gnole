@@ -1,9 +1,8 @@
 // example program to run the NGL shower
 // usage:
-//   ./example [-out output.dat] [-nev 1e6] [-drap 1.0] [-longrec]
+//   ./gnole [-out output.dat] [-nev 1e6] [-drap 1.0] [-seed 0] [-order 0] [-xmur 1.0] [-xQ 1.0] [-p -1] [-nbins 100]
 //
-// the program will create a file containing the dS/dt and dS/dlnkt
-// histograms.
+// the program will create a file containing the dS/dlnET histograms.
 
 
 #include "Shower.hh"
