@@ -12,8 +12,7 @@ class Observable {
 public:
   /// constructor setting up the histograms
   Observable(double p, int nbin = 100, double maxlnkt = 10.0, double maxt = EVOLCUT)
-    : p_(p), dSdt_(0.0, maxt, nbin), dSdlnkt_(0.0, maxlnkt, nbin),
-      dSdlnE_(0.0, maxlnkt, nbin), dSdlnET_(0.0, maxlnkt, nbin) {}
+    : p_(p),  dSdlnET_(0.0, maxlnkt, nbin) {}
   
   /// description
   virtual std::string description() const = 0;
