@@ -33,8 +33,8 @@ executables will be placed in the bin/ directory.
 ## Authors
 
 * Andrea Banfi
-* Frederic Dreyer
-* Pier Monni
+* Frédéric A. Dreyer
+* Pier Francesco Monni
 
 ## References
 
@@ -56,4 +56,4 @@ following articles:
 
 * M. Dasgupta and G. Salam, "Accounting for coherence in interjet E(t) flow: A Case study,"
   JHEP **03** (2002), 017
-  [arXiv:arXiv:hep-ph/0203009 [hep-ph]](https://arxiv.org/abs/hep-ph/0203009 "Original resummation for Et")
+  [arXiv:hep-ph/0203009 [hep-ph]](https://arxiv.org/abs/hep-ph/0203009 "Original resummation for Et")
