@@ -38,8 +38,22 @@ executables will be placed in the bin/ directory.
 
 ## References
 
+This code is based on the work published in the following two articles:
+
 * A. Banfi, F. A. Dreyer and P.F. Monni, "Next-to-leading non-global logarithms in QCD,"
   [arXiv:2104.06416](https://arxiv.org/abs/2104.06416 "theory non-global paper")
 
 * A. Banfi, F. A. Dreyer and P.F. Monni, "Higher-order non-global logarithms from jet calculus,"
   [arXiv:2111.XXXXX](https://arxiv.org/abs/2111.XXXXX "MC non-global paper")
+
+Gnole was built on previous work by Mrinal Dasgupta and Gavin Salam,
+and incorporates algorithms and code originally presented in the
+following articles:
+
+* M. Dasgupta and G. Salam, "Resummation of nonglobal QCD observables,"
+  Phys. Lett. B **512** (2001), 323-330
+  [arXiv:hep-ph/0104277 [hep-ph]](https://arxiv.org/abs/hep-ph/0104277 "Original MC for non-global resummation")
+
+* M. Dasgupta and G. Salam, "Accounting for coherence in interjet E(t) flow: A Case study,"
+  JHEP **03** (2002), 017
+  [arXiv:arXiv:hep-ph/0203009 [hep-ph]](https://arxiv.org/abs/hep-ph/0203009 "Original resummation for Et")

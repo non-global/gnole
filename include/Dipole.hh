@@ -149,14 +149,12 @@ private:
   //----------------------------------------------------------------------
   /// set or reset the rapidity separation of the dipole and its
   /// invariant mass
+  /// This function was originally written by Gavin Salam
   void reset() {
     // We set the relative boundaries wrt to dipole ends for new emissions in the lab frame 
     rap_left_  =  std::min(rapmax_, log(left_. momentum().E()/ktsoft_));
     rap_right_ = -std::min(rapmax_, log(right_.momentum().E()/ktsoft_));
     Momentum sum = left_.momentum() + right_.momentum();
-    // std::cout << std::setw(8) << rap_left_ << " <> "
-    // 	      << std::setw(8) << rap_right_
-    // 	     << " => " << delta_rap_ << " (dipole frame)" <<std::endl; 
 
     // then we boost to the dipole frame and compute the rapidity
     // range for new emissions in that frame
@@ -164,9 +162,6 @@ private:
     rap_right_ = rap_right_ - log(0.5*sum.m()/right_.momentum().E());
     delta_rap_ = std::max(rap_left_ - rap_right_, 0.0);
     m2_        = sum.m2();
-    // std::cout << std::setw(8) << rap_left_ << " <> "
-    // 	      << std::setw(8) << rap_right_
-    // 	      << " => " << delta_rap_ <<std::endl; 
   }
 
   /// left and right dipole ends
