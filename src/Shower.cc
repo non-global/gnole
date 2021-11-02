@@ -326,12 +326,12 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
   }
   Momentum insertion = event_[idip_insertion].radiate(0.0, rng.uniform_pos(),
 						      rng.uniform_pos());
-  int f2 = 1.0;
+  double f2 = 1.0;
   int rn = event_[idip].right_neighbour();
   if (!dipole_kt_ordering) 
     f2 = 0.5*dot_product(event_[idip].left().momentum(),event_[rn].right().momentum())
-      / dot_product(event_[idip].left().momentum(),insertion)
-      / dot_product(insertion,event_[rn].right().momentum());
+      / dot_product(event_[idip].left().momentum(),insertion.stored_E()*insertion)
+      / dot_product(insertion.stored_E()*insertion,event_[rn].right().momentum());
   double tb = t_scale(ln_kt(t_insertion)-0.5*log(f2));
   tb += - log(rng.uniform_pos()) / (2.0 * CA * event_[idip_insertion].delta_rap());
   double lnkt = ln_kt(tb);
@@ -341,7 +341,7 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
     event_.bad=true;
     return Momentum();
   }
-  insertion.stored_E(exp(-lnkt+log(xQ_)));
+  insertion.stored_E(insertion.stored_E()*exp(-lnkt+log(xQ_)));
   return insertion;
 }
 
@@ -396,5 +396,14 @@ void Shower::reconstruct_parent(const Momentum& spec_left, const Momentum& spec_
   kab.boost(k12);
   kab.stored_E(kab.E()*storedE);
   kab = (1.0/kab.E())*kab;
+  
+  // // Create parent directly in lab frame
+  // kab = kab.stored_E()*kab;
+  // double nab = kab.rap();
+  // double ktab = sqrt(kab.px()*kab.px()+kab.py()*kab.py());
+  // kab = Momentum(kab.px(), kab.py(), ktab*sinh(nab), ktab*cosh(nab));
+  // kab.stored_E(kab.E());
+  // kab = (1.0/kab.stored_E())*kab;
+
   return;
 }

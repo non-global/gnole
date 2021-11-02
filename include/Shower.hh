@@ -25,8 +25,8 @@ public:
 	 int order_evl,
 	 std::string header = "",
 	 int seed           = 0)
-    : xmur_(xmur), xQ_(xQ), order_evl_(order_evl), obs_(&obs), evl_grid_(0),
-      header_(header), rng(seed), gluon_(0,0,0,0), event_cache_(new Event()) {
+    : xmur_(xmur), xQ_(xQ), order_evl_(order_evl), obs_(&obs), NLL_counterterm_(false),
+      evl_grid_(0), header_(header), rng(seed), gluon_(0,0,0,0), event_cache_(new Event()) {
     assert((order_evl_==0) || (order_evl_==1));
     asmur_=alphas2(xmur_);
     // if order = 1, set up the grid for ln kt

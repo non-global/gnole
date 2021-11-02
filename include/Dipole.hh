@@ -62,6 +62,7 @@ public:
   /// numbers ran1,ran2 \in [0,1].
   /// NOTE: This does NOT modify the dipole itself, and only returns
   /// the direction of the emitted parton.
+  /// This function was originally written by Gavin Salam
   Momentum radiate(double lnkt, double ran1, double ran2) {
     double phi = ran1*2.0*M_PI;
     double eta = ran2*delta_rap_ + rap_right_;
