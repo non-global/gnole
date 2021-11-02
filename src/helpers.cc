@@ -16,23 +16,3 @@ bool periodic_output() {
   
 }
 
-
-// //----------------------------------------------------------------------
-// string cumul_output(const NewHist & hist) {
-//   ostringstream ostr;
-//   double from_below = hist.underflow();
-//   double total = hist.total_weight();
-//   double norm = 1.0/total;
-//   for (unsigned i = 0; true; i++) {
-//     // a rough error estimate based on the smaller of the cumulative
-//     // results from below / above
-//     double err = sqrt(min(from_below, total - from_below));
-//     ostr << hist.binlo(i) << " " << from_below * norm << " " << err * norm << endl;
-//     if (i < hist.size()) {
-//       from_below += hist[i];
-//     } else {
-//       break;
-//     }
-//   }
-//   return ostr.str();
-// }

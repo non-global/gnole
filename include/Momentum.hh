@@ -9,8 +9,8 @@
 // typedef fastjet::PseudoJet Momentum;
 
 //----------------------------------------------------------------------
-/// Momentum class containing a four vector
-/// Heavily drawn from FastJet's PseudoJet
+/// \class Momentum
+/// contains a four vector, adapted from FastJet's PseudoJet
 class Momentum {
 public:
   Momentum() : px_(0),py_(0),pz_(0),E_(0), stored_E_(0.0){}

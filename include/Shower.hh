@@ -10,6 +10,9 @@
 #include <cassert>
 #include <iostream>
 
+//----------------------------------------------------------------------
+/// \class Shower
+/// contains the core shower evolution
 class Shower {
 public:
   /// constructor
@@ -22,9 +25,8 @@ public:
 	 int order_evl,
 	 std::string header = "",
 	 int seed           = 0)
-    : xmur_(xmur), xQ_(xQ), order_evl_(order_evl), nev_ratio_3j_(10),
-      obs_(&obs), evl_grid_(0), header_(header), rng(seed),
-      gluon_(0,0,0,0), event_cache_(new Event()) {
+    : xmur_(xmur), xQ_(xQ), order_evl_(order_evl), obs_(&obs), evl_grid_(0),
+      header_(header), rng(seed), gluon_(0,0,0,0), event_cache_(new Event()) {
     assert((order_evl_==0) || (order_evl_==1));
     asmur_=alphas2(xmur_);
     // if order = 1, set up the grid for ln kt
@@ -36,9 +38,9 @@ public:
 #endif
 	evl_grid_ = new EvolGrid(NEVLGRID, xmur_, xQ_);
       std::cerr << ": done." << std::endl;
+      // set the integrated coefficient
+      integrated_counterterm_ = integrated_counterterm(obs_->parameter());
     }
-    // if NLL counterterm present, set the integrated coefficient
-    integrated_counterterm_ = integrated_counterterm(obs_->parameter());
   }
 
   /// destructor
@@ -107,8 +109,6 @@ protected:
   bool NLL_counterterm_;
   /// integrated counterterm
   double integrated_counterterm_;
-  /// ratio of events to use for three jet piece
-  int nev_ratio_3j_;
   /// pointer to observable
   Observable * obs_;
   /// pointer to evolution grid

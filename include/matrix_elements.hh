@@ -3,6 +3,7 @@
 #define __MATRIX_ELEMENTS_HH__
 #include <gsl/gsl_sf_dilog.h>
 
+/// integrated counterterm
 inline double integrated_counterterm(double delta_eta) {
   double c = (exp(delta_eta) - 1.0) / (exp(delta_eta) + 1.0);
   double li2OneMinusC2 = gsl_sf_dilog((1.0 - c)/2.0);
@@ -24,55 +25,7 @@ inline double integrated_counterterm(double delta_eta) {
   return counter_term;
 }
 
-  // !---------------------------------------------------------------------------
-  // ! this function returns the integrated counterterm for the slice problems
-  // ! It is the integral of the subtraction term used in the 3-jet contribution
-  // ! See constants_calculation.nb for the analytic calculation
-  // ! delta_eta is the total width of the slice
-  // subroutine integrated_counterterm(delta_eta, counter_term)
-  //   real(dp), intent(in)  :: delta_eta
-  //   real(dp), intent(out) :: counter_term
-  //   !--------------------------------
-  //   real(dp) :: c
-  //   ! The following declarations are necessary for hplog
-  //   integer, parameter :: n1=-1
-  //   integer, parameter :: n2= 1
-  //   integer, parameter :: nw= 2
-  //   real(dp)    :: Hr1(n1:n2),Hr2(n1:n2,n1:n2),Hr3(n1:n2,n1:n2,n1:n2),&
-  //        & Hr4(n1:n2,n1:n2,n1:n2,n1:n2)
-  //   real(dp)    :: Hi1(n1:n2),Hi2(n1:n2,n1:n2),Hi3(n1:n2,n1:n2,n1:n2),&
-  //        & Hi4(n1:n2,n1:n2,n1:n2,n1:n2)
-  //   complex(dp) :: Hc1(n1:n2),Hc2(n1:n2,n1:n2),Hc3(n1:n2,n1:n2,n1:n2), &
-  //        & Hc4(n1:n2,n1:n2,n1:n2,n1:n2)
-  //   complex(dp) :: Li2OneMinusC2, Li2OnePlusC2
-    
-  //   c = (exp(delta_eta) - one) / (exp(delta_eta) + one)
-
-  //   call hplog((one-c)/two,nw,Hc1,Hc2,Hc3,Hc4, &
-  //        &     Hr1,Hr2,Hr3,Hr4,Hi1,Hi2,Hi3,Hi4,n1,n2)
-  //   Li2OneMinusC2 = Hc2(0,1)
-
-  //   call hplog((one+c)/two,nw,Hc1,Hc2,Hc3,Hc4, &
-  //        &     Hr1,Hr2,Hr3,Hr4,Hi1,Hi2,Hi3,Hi4,n1,n2)
-  //   Li2OnePlusC2 = Hc2(0,1)
-
-  //   counter_term = (4*(57 - 7*Pi**2) - (3*(64*c - 64*c**3 - 192*c*log(2._dp) - 64*c**3*log(2._dp) - &
-  //        &         8*log(1 - c) + 96*c*log(1 - c) - 144*c**2*log(1 - c) + &
-  //        &         32*c**3*log(1 - c) + 24*c**4*log(1 - c) + 40*log(2._dp)*log(1 - c) - &
-  //        &         80*c**2*log(2._dp)*log(1 - c) + 40*c**4*log(2._dp)*log(1 - c) - &
-  //        &         3*log(256._dp)*log(1 - c) + 6*c**2*log(256._dp)*log(1 - c) - &
-  //        &         3*c**4*log(256._dp)*log(1 - c) - 8*log(1 - c)**2 + 16*c**2*log(1 - c)**2 - &
-  //        &         8*c**4*log(1 - c)**2 + 8*log(1 + c) + 96*c*log(1 + c) + &
-  //        &         144*c**2*log(1 + c) + 32*c**3*log(1 + c) - 24*c**4*log(1 + c) - &
-  //        &         40*log(2._dp)*log(1 + c) + 80*c**2*log(2._dp)*log(1 + c) - &
-  //        &         40*c**4*log(2._dp)*log(1 + c) + 3*log(256._dp)*log(1 + c) - &
-  //        &         6*c**2*log(256._dp)*log(1 + c) + 3*c**4*log(256._dp)*log(1 + c) + &
-  //        &         8*log(1 + c)**2 - 16*c**2*log(1 + c)**2 + 8*c**4*log(1 + c)**2 + &
-  //        &         16*(-1 + c**2)**2*Li2OneMinusC2 - &
-  //        &         16*(-1 + c**2)**2*Li2OnePlusC2))/(-1 + c**2)**2)/24._dp
-  //   return    
-  // end subroutine integrated_counterterm
-  
+/// Mgg strongly ordered matrix element in large NC limit
 inline double Mgg_strongly_ordered_large_Nc(const Momentum& p, const Momentum& pbar,
 					    const Momentum& k1,const Momentum& k2) {
   double W12 = dot_product(p,pbar)/(dot_product(p,k1)*dot_product(k1,k2)*dot_product(k2,pbar));
@@ -84,6 +37,7 @@ inline double Mgg_strongly_ordered_large_Nc(const Momentum& p, const Momentum& p
   return m;
 }
 
+/// Mgg full matrix element in large NC limit
 inline double Mgg_full_large_Nc(const Momentum& p, const Momentum& pbar,
 				const Momentum& k1,const Momentum& k2) {
   double W12 = dot_product(p,pbar)/(dot_product(p,k1)*dot_product(k1,k2)*dot_product(k2,pbar));
@@ -102,11 +56,12 @@ inline double Mgg_full_large_Nc(const Momentum& p, const Momentum& pbar,
   return m;
 }
 
-
+/// single emission antenna
 inline double single_emsn_antenna(const Momentum& a, const Momentum& b, const Momentum& c) {
   return 2*dot_product(a,c)/(dot_product(a,b)*dot_product(b,c));
 }
 
+/// double emission antenna in strongly ordered limit
 inline double double_emsn_antenna_strongly_ordered(const Momentum& a, const Momentum& b,
 						   const Momentum& c, const Momentum& d) {
   // A(a,b,c,d) (c<<b) = A(a,b,d)A(b,c,d) = [2(a d)/((a b)(b d))] * [2(b d)/((b c) (c d))
@@ -114,6 +69,7 @@ inline double double_emsn_antenna_strongly_ordered(const Momentum& a, const Mome
   return 4*dot_product(a,d)/(dot_product(a,b)*dot_product(b,c)*dot_product(c,d));
 }
 
+/// full double emission antenna
 inline double double_emsn_antenna(const Momentum& a, const Momentum& b,
 				  const Momentum& c, const Momentum& d) {
   // A(a,b,c,d) = (D-2)/(b c)^2 * (1 - (a b)/(a b+c) - (c d)/(b+c d))^2
@@ -133,6 +89,7 @@ inline double double_emsn_antenna(const Momentum& a, const Momentum& b,
   return res;
 }
 
+/// double soft matrix element
 inline double double_soft(double zeta, double cdphi, double deta) {
   double zeta2 = zeta*zeta;
   double zeta4 = zeta2*zeta2;

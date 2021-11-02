@@ -5,7 +5,9 @@
 #include "Dipole.hh"
 #include <vector>
 
-/// class containing a current event with a configuration of dipoles
+//----------------------------------------------------------------------
+/// \class Event
+/// contains a current event with a configuration of dipoles
 class Event {
 public:
   Event() : weight(1.0), bad(false), eta_tot(0.0), thrust_axis_(0,0,1,1) {}
@@ -49,6 +51,7 @@ public:
       dipoles_.push_back(event[i]);
     }
   }
+  
   /// retrieve an event from a cached pointer
   void retrieve(Event* cache) {
     weight = cache->weight;

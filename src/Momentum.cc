@@ -34,6 +34,8 @@ double Momentum::phi() const {
   return phi;
 }
 
+//----------------------------------------------------------------------
+/// rotate jet according to theta and phi
 void Momentum::rotate(double thetaIn, double phiIn) {
 
   double cthe = cos(thetaIn);
@@ -53,6 +55,8 @@ void Momentum::rotate(double thetaIn, double phiIn) {
   pz_         = tmpz;
 }
 
+//----------------------------------------------------------------------
+/// perform inverse rotation of jet
 void Momentum::unrotate(double thetaIn, double phiIn) {
 
   double cthe = cos(thetaIn);
@@ -71,6 +75,9 @@ void Momentum::unrotate(double thetaIn, double phiIn) {
   py_         = tmpy;
   pz_         = tmpz;
 }
+
+//----------------------------------------------------------------------
+/// perform rotation of jet according to cos and sin of angles
 void Momentum::rotate2(double cthe, double sthe, double cphi, double sphi) {
   /* rotation:
     cthe*cphi     -sphi      sthe*cphi

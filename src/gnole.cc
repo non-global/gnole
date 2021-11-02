@@ -1,8 +1,8 @@
-// example program to run the NGL shower
+// example program to run non global evolution
 // usage:
 //   ./gnole [-out output.dat] [-nev 1e6] [-drap 1.0] [-seed 0] [-order 0] [-xmur 1.0] [-xQ 1.0] [-p -1] [-nbins 100]
 //
-// the program will create a file containing the dS/dlnET histograms.
+// the program will create a file containing the dS/dlnET histogram.
 
 
 #include "Shower.hh"

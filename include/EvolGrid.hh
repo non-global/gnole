@@ -4,8 +4,9 @@
 #include "Grid.hh"
 #include "Parameters.hh"
 #include <iostream>
-//======================================================================
-/// class with a grid containing the relation between ln kt and
+//----------------------------------------------------------------------
+/// \class EvolGrid
+/// a grid containing the relation between ln kt and
 /// evolution scale for fast interpolation
 class EvolGrid : public Grid {
 public:
@@ -51,14 +52,8 @@ public:
       + (asmur*KCMW*asmur*b0*L)/(4*b0*M_PI*M_PI - 8*b0*asmur*b0*L*M_PI*M_PI)
       + 2*asmur*b0*b0*M_PI*(-2*asmur*b0*L*log(xmur) + log(xQ))/
       (4.*b0*b0*(-1 + 2*asmur*b0*L)*M_PI*M_PI);
-
-    // return -log(1 - 2*asmur*b0*L)/(4.*b0*M_PI);
-    // NB: check scale dependence
-    // add CMW term
-    // full expression
-    //     -((as KCMW lambda)/(4 b0 (-1 + 2 lambda) \[Pi]^2)) + (as b1 lambda)/(
-    //      2 b0^2 (-1 + 2 lambda) \[Pi]) - Log[1 - 2 lambda]/(4 b0 \[Pi]) + (
-    //      as b1 Log[1 - 2 lambda])/(4 b0^2 (-1 + 2 lambda) \[Pi]) 
+    // at LL:
+    //   return -log(1 - 2*asmur*b0*L)/(4.*b0*M_PI);
   }
 
   //----------------------------------------------------------------------

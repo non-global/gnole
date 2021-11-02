@@ -8,8 +8,9 @@
 #include "torch/script.h"
 #endif
 
-//======================================================================
-/// class with a grid containing precomputed values
+//----------------------------------------------------------------------
+/// \class Grid
+/// a grid containing precomputed values
 class Grid {
 public:
   /// constructor

@@ -7,20 +7,8 @@
 #define NGRID  1000
 #define LNEVOLMAX 4
 #define LNEVOLMIN -8
-#define SUDAMAX 7.0
 #endif
 #define NEVLGRID  500
-#define NSUDGRID  200
-#define NCALLSUDA 1e4
-
-// medium stat parameters
-// #define NEVLGRID  400
-// #define NSUDGRID  600
-// #define NCALLSUDA 1e5
-// high stat parameters
-// #define NEVLGRID  200
-// #define NSUDGRID  500
-// #define NCALLSUDA 1e6
 
 // rapidity and min kt bounds
 #define RAPMAX    5.0

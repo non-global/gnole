@@ -3,6 +3,7 @@
 #include "Dipole.hh"
 #include "helpers.hh"
 #include <cmath>
+
 //----------------------------------------------------------------------
 /// run the shower with nev events
 void Shower::run(int nev, const std::string& fn) {
@@ -66,7 +67,6 @@ void Shower::reset(bool threejet, bool soft) {
   return;
 }
 
-
 //----------------------------------------------------------------------
 /// choose an emitting dipole
 int Shower::choose_emitter() const {
@@ -79,6 +79,9 @@ int Shower::choose_emitter() const {
   return -1;
 }
 
+
+//----------------------------------------------------------------------
+/// split a dipole and insert the emission into the event
 bool Shower::do_split(int idip, Momentum& emsn) {
   // now insert the emission
   Dipole & emitter = event_[idip];
@@ -179,6 +182,8 @@ void Shower::evolve_insertion(double t) {
   NLL_counterterm_ = false;
 }
 
+//----------------------------------------------------------------------
+/// perform the Z0 evolution
 void Shower::perform_branch0(double ta, const Momentum& ka) {
   if (event_.bad) return;
   // if emission is in observed region, add to histogram and stop the evolution
@@ -188,6 +193,8 @@ void Shower::perform_branch0(double ta, const Momentum& ka) {
   evolve_scale(ta, evol_cutoff_);
 }
 
+//----------------------------------------------------------------------
+/// perform the Z1 evolution pieces
 void Shower::perform_branch(double t_insertion, int idipa, int ibranch, const Momentum& ka) {
   int idipb = -1;
   Momentum kb = generate_second_insertion(t_insertion, idipa, idipb, (ibranch==3 or ibranch==4));
@@ -370,6 +377,8 @@ void Shower::write(int nev, const std::string& fn) const {
   obs_->write(nev, ostr);
 }
 
+//----------------------------------------------------------------------
+/// reconstruct the parent kab
 void Shower::reconstruct_parent(const Momentum& spec_left, const Momentum& spec_right, Momentum& kab) const {
   // Create parent in dipole frame
   Momentum k12 = spec_left+spec_right;

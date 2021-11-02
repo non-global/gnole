@@ -7,6 +7,8 @@
 #include "SimpleHist.hh"
 #include <math.h>
                                                                    
+//----------------------------------------------------------------------
+/// \class Observable
 /// abstract observable base class
 class Observable {
 public:
@@ -77,7 +79,9 @@ protected:
   }
 };
 
-/// implement the slice observable
+//----------------------------------------------------------------------
+/// \class Slice
+/// contains the slice observable
 class Slice : public Observable {
 public:
   /// constructor
