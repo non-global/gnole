@@ -82,6 +82,7 @@ int Shower::choose_emitter() const {
 
 //----------------------------------------------------------------------
 /// split a dipole and insert the emission into the event
+/// The algorithm in this function was originally written by G. Salam
 bool Shower::do_split(int idip, Momentum& emsn) {
   // now insert the emission
   Dipole & emitter = event_[idip];

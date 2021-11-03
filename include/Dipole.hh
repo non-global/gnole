@@ -62,7 +62,7 @@ public:
   /// numbers ran1,ran2 \in [0,1].
   /// NOTE: This does NOT modify the dipole itself, and only returns
   /// the direction of the emitted parton.
-  /// This function was originally written by Gavin Salam
+  /// The algorithm in this function was originally written by G. Salam
   Momentum radiate(double lnkt, double ran1, double ran2) {
     double phi = ran1*2.0*M_PI;
     double eta = ran2*delta_rap_ + rap_right_;
@@ -149,7 +149,7 @@ private:
   //----------------------------------------------------------------------
   /// set or reset the rapidity separation of the dipole and its
   /// invariant mass
-  /// This function was originally written by Gavin Salam
+  /// The algorithm in this function was originally written by G. Salam
   void reset() {
     // We set the relative boundaries wrt to dipole ends for new emissions in the lab frame 
     rap_left_  =  std::min(rapmax_, log(left_. momentum().E()/ktsoft_));
