@@ -127,7 +127,7 @@ void Shower::evolve_scale(double t, double tend) {
 
     if (!do_split(idip, emsn)) continue;
     // if emission is in observed region, add to histogram and stop the evolution
-    double C1 = (NLL_counterterm_ ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
+    double C1 = (NLL_evolution_ ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
     if (obs_->add_entries_in_region(emsn.stored_E()*emsn, t, lnkt-log(xQ_),
 				    C1*event_.weight, &event_.axis())) {
       event_.bad = true; // setting this to avoid starting another evolution later
@@ -141,7 +141,7 @@ void Shower::evolve_scale(double t, double tend) {
 /// evolve the shower down to cutoff scale
 void Shower::evolve_insertion(double t) {
   if (event_.weight == 0.0 or event_.bad) return;
-  NLL_counterterm_ = true;
+  NLL_evolution_ = true;
 
   // generate log(Q/kt) in [log(xQ), 1/(2 as b0)]
   // generate scale t from log(Q/kt)
@@ -151,12 +151,12 @@ void Shower::evolve_insertion(double t) {
   evolve_scale(t, min(t_insertion, evol_cutoff_));
   int idipa = -1;
   if (t_insertion >= evol_cutoff_) {
-    NLL_counterterm_ = false;
+    NLL_evolution_ = false;
     return;
   }
   Momentum ka = generate_first_insertion(t_insertion, idipa);
   if (event_.bad) {
-    NLL_counterterm_ = false;
+    NLL_evolution_ = false;
     return;
   }
 
@@ -180,7 +180,7 @@ void Shower::evolve_insertion(double t) {
   
   // branch4 = Z^{(1)} evolution collinear counterterm with kta > ktb
   perform_branch(t_insertion, idipa, 4, ka);
-  NLL_counterterm_ = false;
+  NLL_evolution_ = false;
 }
 
 //----------------------------------------------------------------------
@@ -188,7 +188,7 @@ void Shower::evolve_insertion(double t) {
 void Shower::perform_branch0(double ta, const Momentum& ka) {
   if (event_.bad) return;
   // if emission is in observed region, add to histogram and stop the evolution
-  double C1 = (NLL_counterterm_ ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
+  double C1 = (NLL_evolution_ ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
   if (obs_->add_entries_in_region(ka.stored_E()*ka, ta, ln_kt(ta)-log(xQ_),
 				  C1*event_.weight, &event_.axis())) return;
   evolve_scale(ta, evol_cutoff_);
@@ -264,7 +264,7 @@ void Shower::perform_branch(double t_insertion, int idipa, int ibranch, const Mo
   if (ibranch==1 or ibranch == 3)
     assert(do_split(idipb, kb));
 
-  double C1 = (NLL_counterterm_ ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
+  double C1 = (NLL_evolution_ ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
   if (ibranch==1 or ibranch==3) {
     bool thetaIn_ka = obs_->in_region(emitter->stored_E()*(*emitter), &event_.axis());
     bool thetaIn_kb = obs_->in_region(emission->stored_E()*(*emission), &event_.axis());
@@ -349,7 +349,7 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
 //----------------------------------------------------------------------
 /// return the t scale for a given ln kt value
 double Shower::t_scale(double lnkt) const {  
-  if (evl_grid_) return evl_grid_->t(lnkt, xmur_, xQ_);
+  if (evl_grid_ and NLL_evolution_) return evl_grid_->t(lnkt, xmur_, xQ_);
   // at LL:
   //   t = Log[1/(2 - 2 b0 alphas L)]/(4 pi b0)
   return -log(1 - 2*asmur_*b0*lnkt)/(4.*b0*M_PI);
@@ -359,7 +359,7 @@ double Shower::t_scale(double lnkt) const {
 //----------------------------------------------------------------------
 /// return the ln(kt) for a given evolution scale
 double Shower::ln_kt(double t) const {
-  if (evl_grid_) return evl_grid_->ln_kt(t);
+  if (evl_grid_ and NLL_evolution_) return evl_grid_->ln_kt(t);
   /// at LL:
   ///    t = Log[1/(1 - 2 b0 alphas L)]/(4 pi b0)
   /// => ln(kt) = (1 - exp(-4 pi t b0))/(2 alphas b0)

@@ -26,7 +26,7 @@ public:
 	 std::string header = "",
 	 int seed           = 0)
     : xmur_(xmur), xQ_(xQ), order_evl_(order_evl), obs_(&obs),
-      evl_grid_(0), NLL_counterterm_(false),  header_(header),
+      evl_grid_(0), NLL_evolution_(false),  header_(header),
       rng(seed), gluon_(0,0,0,0), event_cache_(new Event()) {
     assert((order_evl_==0) || (order_evl_==1));
     asmur_=alphas2(xmur_);
@@ -110,8 +110,8 @@ protected:
   Observable * obs_;
   /// pointer to evolution grid
   EvolGrid * evl_grid_;
-  /// use virtual corrections counteterm
-  bool NLL_counterterm_;
+  /// use virtual corrections counterterm and NLL evolution
+  bool NLL_evolution_;
   /// integrated counterterm
   double integrated_counterterm_;
   /// header with description of run
