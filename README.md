@@ -3,7 +3,7 @@
 Gnole (Generating functionals for NOn-globaL Evolution)
 =================================================
 
-This repository contains the code used in [arXiv:2111.XXXXX](https://arxiv.org/abs/2111.XXXXX "MC non-global paper").
+This repository contains the code used in [arXiv:2111.02413](https://arxiv.org/abs/2111.02413 "MC non-global paper").
 
 ## About
 
@@ -44,7 +44,7 @@ This code is based on the work published in the following two articles:
   [arXiv:2104.06416](https://arxiv.org/abs/2104.06416 "theory non-global paper")
 
 * A. Banfi, F. A. Dreyer and P.F. Monni, "Higher-order non-global logarithms from jet calculus,"
-  [arXiv:2111.XXXXX](https://arxiv.org/abs/2111.XXXXX "MC non-global paper")
+  [arXiv:2111.02413](https://arxiv.org/abs/2111.02413 "MC non-global paper")
 
 Gnole was built on previous work by Mrinal Dasgupta and Gavin Salam,
 and incorporates algorithms and code originally presented in the
