@@ -18,8 +18,8 @@ int main(int argc, char ** argv) {
   // run parameters
   int seed   = cmdline.value("-seed",0);
   int order  = cmdline.value("-order",0);
-  double dy  = cmdline.value("-drap",1.0);
-  double nev = cmdline.value("-nev",1e6);
+  double dy  = cmdline.value("-drap",1.0).help("full rapidity width of the slice (centered on y=0)");
+  double nev = cmdline.value("-nev",1e6).help("number of events to run");
   double xmur = cmdline.value("-xmur",1.0);
   double xQ = cmdline.value("-xQ",1.0);
 
@@ -38,5 +38,9 @@ int main(int argc, char ** argv) {
 #else
   Shower shower(slice, xmur, xQ, order, header, seed);
 #endif
+  // this makes sure there are no unused options
+  // left and also triggers the code needed to produce
+  // the output for -h
+  cmdline.assert_all_options_used();
   shower.run(nev, filename);
 }
