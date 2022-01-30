@@ -7,6 +7,7 @@
 
 #include "Shower.hh"
 #include "Observables.hh"
+#include "Parameters.hh"
 #include "CmdLine.hh"
 #include <string>
 using namespace std;
@@ -22,6 +23,7 @@ int main(int argc, char ** argv) {
   double nev = cmdline.value("-nev",1e6).help("number of events to run");
   double xmur = cmdline.value("-xmur",1.0);
   double xQ = cmdline.value("-xQ",1.0);
+  as = cmdline.value("-alphas-rts",as).help("Value of the coupling at mu=rts");
 
   // observable
   double p = cmdline.value("-p",-1.0);
