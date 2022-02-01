@@ -1,5 +1,7 @@
 #include "Parameters.hh"
 
+double as = 0.118;
+
 // first order evolution of alphas 
 double alphas1(double lnkt) {
   if (2.0 * as * b0 * lnkt >= 1.0) return 0.0;
