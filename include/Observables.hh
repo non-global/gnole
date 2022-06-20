@@ -30,8 +30,8 @@ public:
 
       double ET2;
       if (thrust_axis) {
-	double costh = dot3(emsn, *thrust_axis)/emsn.E();
-	ET2 = emsn.E() * emsn.E() * (1.0 - costh*costh);
+	     double costh = dot3(emsn, *thrust_axis)/emsn.E();
+	     ET2 = emsn.E() * emsn.E() * (1.0 - costh*costh);
       } else ET2 = emsn.px()*emsn.px() + emsn.py()*emsn.py();
       dSdlnET_. add_entry(-Ltilde(sqrt(ET2)), weight);
       return true;

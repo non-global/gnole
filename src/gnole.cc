@@ -8,7 +8,9 @@
 #include "Shower.hh"
 #include "Observables.hh"
 #include "CmdLine.hh"
+#include "Parameters.hh"
 #include <string>
+
 using namespace std;
 
 
@@ -22,6 +24,14 @@ int main(int argc, char ** argv) {
   double nev = cmdline.value("-nev",1e6);
   double xmur = cmdline.value("-xmur",1.0);
   double xQ = cmdline.value("-xQ",1.0);
+
+  // set strong coupling
+  double alphas = cmdline.value("-as", 0.118);
+  set_alphas_at_Q(alphas);
+
+  // set shower IR cutoff (besides the Landau pole)
+  double cutoff = cmdline.value("-lnktmax", 20);
+  set_lnktmax(cutoff);
 
   // observable
   double p = cmdline.value("-p",-1.0);

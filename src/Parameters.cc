@@ -1,4 +1,13 @@
 #include "Parameters.hh"
+#include <iostream>
+
+// set alphas at Q (hard scale)
+double as = 0; // Default value
+void set_alphas_at_Q(double alphas) {as = alphas;};
+
+// set infrared cutoff of the evolution
+double lnktmax = 0;
+void set_lnktmax(double lnkt) {lnktmax = lnkt;};
 
 // first order evolution of alphas 
 double alphas1(double lnkt) {

@@ -37,7 +37,7 @@ public:
       if (fn_evl_nn!="") evl_grid_ = new EvolGrid(fn_evl_nn);
       else
 #endif
-	evl_grid_ = new EvolGrid(NEVLGRID, xmur_, xQ_);
+	    evl_grid_ = new EvolGrid(NEVLGRID, xmur_, xQ_);
       std::cerr << ": done." << std::endl;
       // set the integrated coefficient
       integrated_counterterm_ = integrated_counterterm(obs_->parameter());

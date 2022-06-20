@@ -35,7 +35,8 @@ void Shower::run_threejet(double tstart, bool soft) {
   double w = -event_.weight;
   reset(false);
   event_.weight = w;
-  // now veto configurations where gluon is in the side as computed in the two jet limit
+  // now veto configurations where gluon is in the slice as computed in 
+  // the two jet limit within the integrated counterterm
   if (obs_->in_region(gluon_, &event_.axis())) event_.bad=true;
   evolve_scale(tstart);
 }
@@ -50,6 +51,7 @@ void Shower::reset(bool threejet, bool soft) {
     bool in_region = false;
     event_.reset_threejet_LL(xmur_, xQ_, rng.uniform(), rng.uniform(), rng.uniform(), gluon_);
     Shower::do_split(0,gluon_);
+    if (std::abs(gluon_.rap()) > RAPMAX) event_.bad = true;
     in_region = obs_->in_region(gluon_, &event_.axis());
     if (in_region or event_.weight==0.0) event_.bad = true;
   } else {
@@ -114,18 +116,18 @@ void Shower::evolve_scale(double t, double tend) {
     int idip = choose_emitter();
     // now set all emission properties
     double lnkt = ln_kt(t);
-    if (2.0*asmur_*b0*lnkt>=1.0 or (evl_grid_ and t>=evl_grid_->xlim())) {
+    if ((2.0*asmur_*b0*lnkt >= 1.0) or (evl_grid_ and t>=evl_grid_->xlim()) or (lnkt > lnktmax)) {
       event_.bad = true; // setting this to avoid starting another evolution later
       break;
     }
     //fixed coupling: if (event_.eta_tot < 0.0 or event_.eta_tot!=event_.eta_tot) break;
     assert(idip>=0);
     // the momentum of the gluon is xQ*exp(-lnkt)=exp[-(lnkt+ln(xQ))]
-      
+
     Momentum emsn = event_[idip].radiate(lnkt - log(xQ_), rng.uniform_pos(),
 					 rng.uniform_pos());
-
     if (!do_split(idip, emsn)) continue;
+
     // if emission is in observed region, add to histogram and stop the evolution
     double C1 = (NLL_evolution_ ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
     if (obs_->add_entries_in_region(emsn.stored_E()*emsn, t, lnkt-log(xQ_),
@@ -218,8 +220,8 @@ void Shower::perform_branch(double t_insertion, int idipa, int ibranch, const Mo
     if (ibranch==1 or ibranch==2) {
       w = double_emsn_antenna(*spec_left, (emission->stored_E())*(*emission),
 			      (emitter->stored_E())*(*emitter), *spec_right)
-	/double_emsn_antenna_strongly_ordered(*spec_left, emission->stored_E()*(*emission),
-					      emitter->stored_E()*(*emitter), *spec_right);
+	        /double_emsn_antenna_strongly_ordered(*spec_left, emission->stored_E()*(*emission),
+					  emitter->stored_E()*(*emitter), *spec_right);
     }
     // replace emitter with massless version of parent for ibranch 2
     if (ibranch==2) {
@@ -242,8 +244,8 @@ void Shower::perform_branch(double t_insertion, int idipa, int ibranch, const Mo
     if (ibranch==1 or ibranch==2) {
       w = double_emsn_antenna(*spec_left, (emitter->stored_E())*(*emitter),
 			      (emission->stored_E())*(*emission), *spec_right)
-	/double_emsn_antenna_strongly_ordered(*spec_left, emitter->stored_E()*(*emitter),
-					      emission->stored_E()*(*emission), *spec_right);
+	        /double_emsn_antenna_strongly_ordered(*spec_left, emitter->stored_E()*(*emitter),
+					  emission->stored_E()*(*emission), *spec_right);
     }
     // replace emitter with massless version of parent for ibranch 2
     if (ibranch==2) {
@@ -261,28 +263,34 @@ void Shower::perform_branch(double t_insertion, int idipa, int ibranch, const Mo
   
   // update the sign, and flip sign for branches 2 and 3
   event_.weight*= ((ibranch==1 or ibranch==4) ? w : -w);
+  // split the dipole into two for branches 1 and 3
   if (ibranch==1 or ibranch == 3)
     assert(do_split(idipb, kb));
 
+  // now check if any emission is in the slice and fill the histogram accordingly
   double C1 = (NLL_evolution_ ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
   if (ibranch==1 or ibranch==3) {
     bool thetaIn_ka = obs_->in_region(emitter->stored_E()*(*emitter), &event_.axis());
     bool thetaIn_kb = obs_->in_region(emission->stored_E()*(*emission), &event_.axis());
+    // both emissions ka and kb are inside the slice 
     if (thetaIn_ka and thetaIn_kb) {
       if (ibranch==1) {
-	Momentum kab = emitter->stored_E()*(*emitter) + emission->stored_E()*(*emission);
-	kab = (1.0/kab.E())*kab;
-	reconstruct_parent(*spec_left, *spec_right, kab);
-	if (obs_->add_entries_in_region(kab.stored_E()*kab, t_insertion,
+        // ==> bin the parent (defined in the massless scheme @ NLL)
+      	Momentum kab = emitter->stored_E()*(*emitter) + emission->stored_E()*(*emission);
+	      kab = (1.0/kab.E())*kab;
+	      reconstruct_parent(*spec_left, *spec_right, kab);
+	      if (obs_->add_entries_in_region(kab.stored_E()*kab, t_insertion,
 					ln_kt(t_insertion) - log(xQ_),
 					C1*event_.weight, &event_.axis()))
-	  return;
+	      return;
       } else {
-	assert(obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
-					   ln_kt(t_insertion) - log(xQ_),
-					   C1*event_.weight, &event_.axis()));
-	return;
+        // ==> bin the emitter (much harder than the emission in LL kinematics)
+	      assert(obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
+				  ln_kt(t_insertion) - log(xQ_),
+				  C1*event_.weight, &event_.axis()));
+	      return;
       }
+    // only one of the two emissions ka and kb is inside the slice 
     } else if (thetaIn_ka or thetaIn_kb) {
       obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
 				  ln_kt(t_insertion) - log(xQ_),
@@ -292,6 +300,7 @@ void Shower::perform_branch(double t_insertion, int idipa, int ibranch, const Mo
 				  C1*event_.weight, &event_.axis());
       return;
     }
+  // in branches 2 and 4 bin the emitter  
   } else if (ibranch==2 or ibranch==4) {
     if (obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
 				    ln_kt(t_insertion) - log(xQ_),
@@ -300,23 +309,26 @@ void Shower::perform_branch(double t_insertion, int idipa, int ibranch, const Mo
       return;
     } else if (ibranch==2) delete emitter;
   }
+  // now complete the evolution until the cutoff scale
   evolve_scale(t_insertion, evol_cutoff_);
 }
 
 Momentum Shower::generate_first_insertion(double& t_insertion, int& idip_insertion) {
   t_insertion += - log(rng.uniform_pos()) / (2.0 * CA * event_.eta_tot);
   double lnkt = ln_kt(t_insertion);
-  if (event_.bad or 2.0*asmur_*b0*lnkt>=1.0 or (evl_grid_ and t_insertion>=evl_grid_->xlim())) {
+  if (event_.bad or (2.0*asmur_*b0*lnkt >= 1.0) or (evl_grid_ and t_insertion >= evl_grid_->xlim()) or (lnkt > lnktmax)) {
     event_.bad=true;
     return Momentum();
   }
   idip_insertion = choose_emitter();
   assert(idip_insertion>=0);
+  
   Momentum insertion = event_[idip_insertion].radiate(lnkt - log(xQ_), rng.uniform_pos(),
 					    rng.uniform_pos());
   assert(do_split(idip_insertion, insertion));
   return insertion;
 }
+
 Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& idip_insertion, bool dipole_kt_ordering) {
   if (rng.uniform() < 0.5) {
     idip_insertion = event_[idip].delta_rap()!=0.0 ? idip : event_[idip].right_neighbour();
@@ -337,8 +349,8 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
   tb += - log(rng.uniform_pos()) / (2.0 * CA * event_[idip_insertion].delta_rap());
   double lnkt = ln_kt(tb);
   
-  if (lnkt!=lnkt or 2.0*asmur_*b0*lnkt>=1.0
-      or (evl_grid_ and t_insertion>=evl_grid_->xlim())) {
+  if (lnkt!=lnkt or (2.0*asmur_*b0*lnkt >= 1.0)
+      or (evl_grid_ and t_insertion >= evl_grid_->xlim()) or (lnkt > lnktmax)) {
     event_.bad=true;
     return Momentum();
   }
@@ -379,9 +391,9 @@ void Shower::write(int nev, const std::string& fn) const {
 }
 
 //----------------------------------------------------------------------
-/// reconstruct the parent kab
+/// reconstruct the parent kab such that it is massless
 void Shower::reconstruct_parent(const Momentum& spec_left, const Momentum& spec_right, Momentum& kab) const {
-  // Create parent in dipole frame
+  // Create parent in dipole frame (with parent dipole aligned along z axis)
   Momentum k12 = spec_left+spec_right;
   Momentum k1 = spec_left;
   double storedE = kab.stored_E();
@@ -398,13 +410,13 @@ void Shower::reconstruct_parent(const Momentum& spec_left, const Momentum& spec_
   kab.stored_E(kab.E()*storedE);
   kab = (1.0/kab.E())*kab;
   
-  // // Create parent directly in lab frame
-  // kab = kab.stored_E()*kab;
-  // double nab = kab.rap();
-  // double ktab = sqrt(kab.px()*kab.px()+kab.py()*kab.py());
-  // kab = Momentum(kab.px(), kab.py(), ktab*sinh(nab), ktab*cosh(nab));
-  // kab.stored_E(kab.E());
-  // kab = (1.0/kab.stored_E())*kab;
+  // Create parent directly in lab frame
+  //kab = kab.stored_E()*kab;
+  //double nab = kab.rap();
+  //double ktab = sqrt(kab.px()*kab.px()+kab.py()*kab.py());
+  //kab = Momentum(kab.px(), kab.py(), ktab*sinh(nab), ktab*cosh(nab));
+  //kab.stored_E(kab.E());
+  //kab = (1.0/kab.stored_E())*kab;
 
   return;
 }
