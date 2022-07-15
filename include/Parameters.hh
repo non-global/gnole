@@ -10,10 +10,6 @@
 #endif
 #define NEVLGRID  500
 
-// rapidity and min kt bounds
-#define RAPMAX    5.0
-#define KTSOFT    1.0e-8
-
 // evolution cutoff
 #define EVOLCUT   1.0
 
@@ -33,11 +29,15 @@ static const double KCMW = CA*(67.0/18.0 - M_PI*M_PI/6.0) - TF*NF*10.0/9.0;
 static const double H1 = CF*(-8.0 + 7.0/6.0*M_PI*M_PI);
   
 // external variables
-extern double as;
 extern double lnktmax;
+extern double RAPMAX;
+extern double as;
 
 // set infrared cutoff of the evolution
 void set_lnktmax(double lnkt);
+
+// set collinear cutoff for dipole emissions
+void set_rapmax(double etamax);
 
 // set alphas at Q (hard scale)  
 void set_alphas_at_Q(double alphas);

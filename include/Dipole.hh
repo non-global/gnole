@@ -152,8 +152,8 @@ private:
   /// The algorithm in this function was originally written by G. Salam
   void reset() {
     // We set the relative boundaries wrt to dipole ends for new emissions in the lab frame 
-    rap_left_  =  std::min(rapmax_, log(left_. momentum().E()/ktsoft_));
-    rap_right_ = -std::min(rapmax_, log(right_.momentum().E()/ktsoft_));
+    rap_left_  =  rapmax_;
+    rap_right_ = -rapmax_;
     Momentum sum = left_.momentum() + right_.momentum();
 
     // then we boost to the dipole frame and compute the rapidity
@@ -171,9 +171,7 @@ private:
   /// values of invariant mass and rapidities
   double m2_, rap_left_, rap_right_, delta_rap_;
   /// maximum rapidity value
-  static constexpr double rapmax_ = RAPMAX;
-  /// maximum kt value
-  static constexpr double ktsoft_ = KTSOFT;
+  double rapmax_ = RAPMAX;
 };
 
 #endif // __DIPOLE_HH__

@@ -59,8 +59,15 @@ public:
     // *ostr << "# dSdlnE" << std::endl;
     // output(dSdlnE_, ostr, 1.0/nev/dSdlnE_.binsize());
     // *ostr << std::endl << std::endl;
-    *ostr << "# dSdlnET" << std::endl;
-    output(dSdlnET_, ostr, 1.0/nev/dSdlnET_.binsize());
+    //*ostr << "# dSdlnET" << std::endl;
+    //output(dSdlnET_, ostr, 1.0/nev/dSdlnET_.binsize());
+    //*ostr << std::endl << std::endl;
+
+    *ostr << "# dSdlnET (differential)" << std::endl;
+    output_differential(dSdlnET_, ostr, 1.0/nev);
+    *ostr << std::endl << std::endl;
+    *ostr << "# dSdlnET (cumulative)" << std::endl;
+    output_inverse_cumulative(dSdlnET_, ostr, 1.0/nev);
     *ostr << std::endl << std::endl;
   }
 

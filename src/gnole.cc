@@ -25,13 +25,17 @@ int main(int argc, char ** argv) {
   double xmur = cmdline.value("-xmur",1.0);
   double xQ = cmdline.value("-xQ",1.0);
 
-  // set strong coupling
-  double alphas = cmdline.value("-as", 0.118);
-  set_alphas_at_Q(alphas);
-
   // set shower IR cutoff (besides the Landau pole)
   double cutoff = cmdline.value("-lnktmax", 20);
   set_lnktmax(cutoff);
+
+  // set collinear cutoff
+  double etamax = cmdline.value("-etamax", 5);
+  set_rapmax(etamax);
+
+  // set strong coupling
+  double alphas = cmdline.value("-as", 0.118);
+  set_alphas_at_Q(alphas);
 
   // observable
   double p = cmdline.value("-p",-1.0);

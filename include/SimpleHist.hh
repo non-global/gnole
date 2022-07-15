@@ -66,7 +66,7 @@ public:
   // declare (or redeclare) the histogram
   void declare(double minv, double maxv, unsigned int n) {
     _minv = minv; _maxv = maxv; _dv = (maxv-minv)/n; 
-    _weights.resize(n+1);
+    _weights.resize(n+2); // two extra bins for the underflow and overflow
     reset();
   }
 
@@ -95,9 +95,18 @@ public:
   double & operator[](int i) {_have_total = false; return _weights[i];};
   const double & operator[](int i) const {return _weights[i];};
   
+  /// handle underflow and overflow bins
+  unsigned int underflow_bin() const {return size();}
+  unsigned int overflow_bin()  const {return size()+1;}
+  double & underflow() {return _weights[underflow_bin()];}
+  double & overflow()  {return _weights[overflow_bin()];}
+  const double & underflow() const {return _weights[underflow_bin()];}
+  const double & overflow()  const {return _weights[overflow_bin()];}
+
   /// returns the outflow bin
-  double & outflow() {return _weights[size()];};
-  const double & outflow() const {return _weights[size()];};
+  double outflow() {return underflow() + overflow();};
+  //double & outflow() {return _weights[size()];};
+  //const double & outflow() const {return _weights[size()];};
 
   double binlo (int i) const {return i*_dv + _minv;};
   double binhi (int i) const {return (i+1)*_dv + _minv;};
@@ -114,8 +123,13 @@ public:
         if (unsigned_i < size()) {return unsigned_i;} 
       }
     }
-    // otherwise...
-    return size();
+    // otherwise handle outflow bins
+    if (v <  _minv) {
+      return underflow_bin();
+    } else {
+     return overflow_bin();
+    }
+    //return size();
   }
 
   /// return the mean value of all events given to histogram
@@ -272,6 +286,50 @@ inline SimpleHist pow2(const SimpleHist & hist) {
   for (unsigned i = 0; i < hist.outflow_size(); i++) result[i] = hist[i]*hist[i];
   return result;
 }
+
+// cumulative output of histograms ----------------------------------------------
+/// output the differential histogram
+inline void output_differential(const SimpleHist & hist0, 
+                        std::ostream * ostr = (&std::cout),
+                        double norm = 1.0) {
+  *ostr << "# under flow bin " << hist0.underflow() << std::endl;
+  for (unsigned i = 0; i < hist0.size(); i++) {
+    *ostr << hist0.binlo(i)  << " " 
+          << hist0.binmid(i) << " "
+          << hist0.binhi(i)  << " "
+          << hist0[i] * norm / (hist0.binhi(i) - hist0.binlo(i)) << std::endl;
+  }
+  *ostr << "over flow bin " << hist0.overflow() << std::endl;
+}
+
+/// output the cumulative histogram.
+inline void output_cumulative(const SimpleHist & hist0, 
+                        std::ostream * ostr = (&std::cout),
+                        double norm = 1.0) {
+  double cumul = hist0.underflow() * norm;
+  *ostr << hist0.binlo(0) << " " << cumul << std::endl;
+  for (unsigned i = 0; i < hist0.size(); i++) {
+    cumul += hist0[i] * norm;
+    *ostr << hist0.binhi(i) << " " << cumul << std::endl;
+  }
+  cumul += hist0.overflow() * norm;
+  *ostr << "# with_overflow " << cumul << std::endl;
+}
+
+/// output the inverse cumulative histogram.
+inline void output_inverse_cumulative(const SimpleHist & hist0, 
+                        std::ostream * ostr = (&std::cout),
+                        double norm = 1.0) {
+  double cumul = hist0.overflow() * norm;
+  *ostr << hist0.binhi(hist0.size() - 1) << " " << cumul << std::endl;
+  for (int i = hist0.size() - 1; i >= 0; i--) {
+    cumul += hist0[i] * norm;
+    *ostr << hist0.binlo(i) << " " << cumul << std::endl;
+  }
+  cumul += hist0.underflow() * norm;
+  *ostr << "# with_underflow " << cumul << std::endl;
+}
+// -------------------------------------------------------------------
 
 /// output the histogram to standard output -- an operator<< might
 /// have seemed nice, but less easy to generalize to multiple
