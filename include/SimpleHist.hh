@@ -127,7 +127,8 @@ public:
     if (v <  _minv) {
       return underflow_bin();
     } else {
-     return overflow_bin();
+      assert(v >= _maxv);
+      return overflow_bin();
     }
     //return size();
   }

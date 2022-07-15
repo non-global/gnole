@@ -14,7 +14,7 @@ class Observable {
 public:
   /// constructor setting up the histograms
   Observable(double p, int nbin = 100, double maxlnkt = 10.0, double maxt = EVOLCUT)
-    : p_(p),  dSdlnET_(0.0, maxlnkt, nbin) {}
+    : p_(p),  dSdlnET_(0.0, maxlnkt, nbin), dSdt_(0.0, maxt, nbin) {}
   
   /// description
   virtual std::string description() const = 0;
@@ -24,7 +24,7 @@ public:
 			     double weight = 1.0,
 			     const Momentum* thrust_axis = 0) {
     if (this->in_region(emsn, thrust_axis)) {
-      // dSdt_.   add_entry(t, weight);
+      dSdt_.add_entry(t, weight);
       // dSdlnkt_.add_entry(lnkt, weight);
       // dSdlnE_. add_entry(-log(emsn.E()), weight);
 
@@ -50,19 +50,25 @@ public:
 
   /// write the histograms to file or cout with proper normalisation
   void write(int nev, std::ostream * ostr = (&std::cout)) {
-    // *ostr << "# dSdt" << std::endl;
-    // output(dSdt_, ostr, 1.0/nev/dSdt_.binsize());
-    // *ostr << std::endl << std::endl;
-    // *ostr << "# dSdlnkt" << std::endl;
-    // output(dSdlnkt_, ostr, 1.0/nev/dSdlnkt_.binsize());
-    // *ostr << std::endl << std::endl;
-    // *ostr << "# dSdlnE" << std::endl;
-    // output(dSdlnE_, ostr, 1.0/nev/dSdlnE_.binsize());
-    // *ostr << std::endl << std::endl;
+    //*ostr << "# dSdt" << std::endl;
+    //output(dSdt_, ostr, 1.0/nev/dSdt_.binsize());
+    //*ostr << std::endl << std::endl;
+    //*ostr << "# dSdlnkt" << std::endl;
+    //output(dSdlnkt_, ostr, 1.0/nev/dSdlnkt_.binsize());
+    //*ostr << std::endl << std::endl;
+    //*ostr << "# dSdlnE" << std::endl;
+    //output(dSdlnE_, ostr, 1.0/nev/dSdlnE_.binsize());
+    //*ostr << std::endl << std::endl;
     //*ostr << "# dSdlnET" << std::endl;
     //output(dSdlnET_, ostr, 1.0/nev/dSdlnET_.binsize());
     //*ostr << std::endl << std::endl;
 
+    *ostr << "# dSdt (differential)" << std::endl;
+    output_differential(dSdt_, ostr, 1.0/nev);
+    *ostr << std::endl << std::endl;
+    *ostr << "# dSdt (cumulative)" << std::endl;
+    output_inverse_cumulative(dSdt_, ostr, 1.0/nev);
+    *ostr << std::endl << std::endl;
     *ostr << "# dSdlnET (differential)" << std::endl;
     output_differential(dSdlnET_, ostr, 1.0/nev);
     *ostr << std::endl << std::endl;
@@ -79,7 +85,7 @@ public:
 protected:
   double p_;
   // SimpleHist dSdt_, dSdlnkt_, dSdlnE_;
-  SimpleHist dSdlnET_;
+  SimpleHist dSdlnET_, dSdt_;
   double Ltilde(double v) {
     if (p_==-1) return log(v);
     return -1/p_*log(1/pow(v, p_) + 1);

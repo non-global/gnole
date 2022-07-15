@@ -332,10 +332,24 @@ Momentum Shower::generate_first_insertion(double& t_insertion, int& idip_inserti
 Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& idip_insertion, bool dipole_kt_ordering) {
   if (rng.uniform() < 0.5) {
     idip_insertion = event_[idip].delta_rap()!=0.0 ? idip : event_[idip].right_neighbour();
+    // PM Jul 2022: set weight to zero if selected dipole has no phase space for radiating
+    //if (event_[idip].delta_rap() != 0.0) {
+    //  idip_insertion = idip;
+    //} else {
+    //  event_.bad = true;
+    //  return Momentum();
+    //}
   } else {
     assert(event_[idip].right_neighbour()>=0);
     idip_insertion = (event_[event_[idip].right_neighbour()].delta_rap() != 0.0) ?
       event_[idip].right_neighbour() : idip;
+    // PM Jul 2022: set weight to zero if selected dipole has no phase space for radiating
+    //if (event_[event_[idip].right_neighbour()].delta_rap() != 0.0) {
+    //  idip_insertion = event_[idip].right_neighbour();
+    //} else {
+    //  event_.bad = true;
+    //  return Momentum();
+    //}  
   }
   Momentum insertion = event_[idip_insertion].radiate(0.0, rng.uniform_pos(),
 						      rng.uniform_pos());
@@ -351,7 +365,7 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
   
   if (lnkt!=lnkt or (2.0*asmur_*b0*lnkt >= 1.0)
       or (evl_grid_ and t_insertion >= evl_grid_->xlim()) or (lnkt > lnktmax)) {
-    event_.bad=true;
+    event_.bad = true;
     return Momentum();
   }
   insertion.stored_E(insertion.stored_E()*exp(-lnkt+log(xQ_)));
