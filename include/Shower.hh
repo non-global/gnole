@@ -67,16 +67,22 @@ protected:
   bool do_split(int idip, Momentum&  emsn);
   
   /// evolve the shower between two scales
-  void evolve_scale(double t, double tend = evol_cutoff_);
+  void evolve_scale(double t, double tend = evol_cutoff_, bool include_as_constant = true);
   
   /// evolve the shower including insertion
   void evolve_insertion(double tstart);
 
+  /// evolve the shower including insertion (NLL fully expanded out)
+  void evolve_insertion_expanded(double tstart);
+
   /// perform the Z^{(0)} evolution
   void perform_branch0(double ta, const Momentum& ka);
 
+  /// perform the perturbative NLL insertion of the Z^{(0)} evolution (used when NLL_EXPANDED=true)
+  void perform_branch_single_insertion(double t_insertion, int ibranch, const Momentum& ka);
+
   /// perform the Z^{(1)} evolution
-  void perform_branch(double t_insertion, int idipa, int ibranch, const Momentum& ka);
+  void perform_branch_double_insertion(double t_insertion, int idipa, int ibranch, const Momentum& ka);
   
   /// generate and insert the first insertion
   Momentum generate_first_insertion(double& t_insertion, int& idip_insertion);

@@ -13,6 +13,9 @@ void set_rapmax(double etamax) {RAPMAX = etamax;};
 double as = 0; // Default value
 void set_alphas_at_Q(double alphas) {as = alphas;};
 
+// set NLL_EXPANDED flag
+bool NLL_EXPANDED = false;
+void set_nll_expanded(bool nll_expanded) {NLL_EXPANDED = nll_expanded;};
 
 // first order evolution of alphas 
 double alphas1(double lnkt) {

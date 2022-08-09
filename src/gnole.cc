@@ -37,6 +37,10 @@ int main(int argc, char ** argv) {
   double alphas = cmdline.value("-as", 0.118);
   set_alphas_at_Q(alphas);
 
+  // decide whether to expand NLL corrections
+  bool nll_expanded = cmdline.present("-expand-nll");
+  set_nll_expanded(nll_expanded);
+
   // observable
   double p = cmdline.value("-p",-1.0);
   int nbins = cmdline.value("-nbins",100);

@@ -32,6 +32,8 @@ static const double H1 = CF*(-8.0 + 7.0/6.0*M_PI*M_PI);
 extern double lnktmax;
 extern double RAPMAX;
 extern double as;
+// flag to expand out NLL corrections
+extern bool NLL_EXPANDED;
 
 // set infrared cutoff of the evolution
 void set_lnktmax(double lnkt);
@@ -41,6 +43,9 @@ void set_rapmax(double etamax);
 
 // set alphas at Q (hard scale)  
 void set_alphas_at_Q(double alphas);
+
+// set NLL_EXPANDED flag
+void set_nll_expanded(bool nll_expanded);
 
 // first order evolution of alphas 
 double alphas1(double lnkt);

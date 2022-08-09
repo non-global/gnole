@@ -17,7 +17,17 @@ void Shower::run(int nev, const std::string& fn) {
     if (order_evl_ == 0) 
       evolve_scale(tstart);
     else if (order_evl_ == 1) {
-      evolve_insertion(tstart);
+      if (!NLL_EXPANDED){
+        // run the soft factor S2 with two-loop evolution convoluted with H2 at NLO
+        evolve_insertion(tstart);
+      } else {
+        // run the soft factor S2 with one-loop evolution convoluted with H2 at NLO
+        evolve_scale(tstart);
+        // run the two loop corrections to S2 convoluted with H2 at LO
+        reset(); // reset two jet configuration
+        evolve_insertion_expanded(tstart);
+      }
+      // run the soft factor S3 with one-loop evolution convoluted with H3 at LO
       run_threejet(tstart, false);
       run_threejet(tstart, true);
     }
@@ -109,7 +119,7 @@ bool Shower::do_split(int idip, Momentum& emsn) {
 
 //----------------------------------------------------------------------
 /// evolve the shower down to specified scale or down to cutoff scale
-void Shower::evolve_scale(double t, double tend) {
+void Shower::evolve_scale(double t, double tend, bool include_as_constant) {
   if (event_.weight == 0.0 or event_.bad) return;
   while ((t += - log(rng.uniform_pos()) / (2.0 * CA * event_.eta_tot)) < tend) {
     // increase by amount chosen with distribution e^(-2*CA*sum_rap)    
@@ -129,7 +139,7 @@ void Shower::evolve_scale(double t, double tend) {
     if (!do_split(idip, emsn)) continue;
 
     // if emission is in observed region, add to histogram and stop the evolution
-    double C1 = (NLL_evolution_ ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
+    double C1 = ((include_as_constant and NLL_evolution_) ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
     if (obs_->add_entries_in_region(emsn.stored_E()*emsn, t, lnkt-log(xQ_),
 				    C1*event_.weight, &event_.axis())) {
       event_.bad = true; // setting this to avoid starting another evolution later
@@ -157,6 +167,7 @@ void Shower::evolve_insertion(double t) {
     return;
   }
   Momentum ka = generate_first_insertion(t_insertion, idipa);
+  assert(do_split(idipa, ka));
   if (event_.bad) {
     NLL_evolution_ = false;
     return;
@@ -164,26 +175,86 @@ void Shower::evolve_insertion(double t) {
 
   event_cache_->copy(event_);
   
-  // branch0 = Z^{(0)} evolution 
+  // branch0 = Z^{(0)} evolution
   perform_branch0(t_insertion, ka);
   event_.retrieve(event_cache_);
-  
+
   // branch1 = Z^{(1)} evolution double real with kta > ktb'
-  perform_branch(t_insertion, idipa, 1, ka);
+  perform_branch_double_insertion(t_insertion, idipa, 1, ka);
   event_.retrieve(event_cache_);
 
   // branch2 = Z^{(1)} evolution collinear counterterm with kta > ktb'
-  perform_branch(t_insertion, idipa, 2, ka);
+  perform_branch_double_insertion(t_insertion, idipa, 2, ka);
   event_.retrieve(event_cache_);
   
   // branch3 = Z^{(1)} evolution double real with kta > ktb
-  perform_branch(t_insertion, idipa, 3, ka);
+  perform_branch_double_insertion(t_insertion, idipa, 3, ka);
   event_.retrieve(event_cache_);
   
   // branch4 = Z^{(1)} evolution collinear counterterm with kta > ktb
-  perform_branch(t_insertion, idipa, 4, ka);
+  perform_branch_double_insertion(t_insertion, idipa, 4, ka);
   NLL_evolution_ = false;
 }
+
+
+//----------------------------------------------------------------------
+/// evolve the shower down to cutoff scale while fully expanding 
+/// out NLL corrections
+void Shower::evolve_insertion_expanded(double t) {  
+  if (event_.weight == 0.0 or event_.bad) return;
+  NLL_evolution_ = true;
+
+  // generate log(Q/kt) in [log(xQ), 1/(2 as b0)]
+  // generate scale t from log(Q/kt)
+  double lnkt_insertion = log(xQ_) + rng.uniform()*(1.0/(2.0*asmur_*b0) - log(xQ_));
+  double t_insertion = t_scale(lnkt_insertion);
+  
+  evolve_scale(t, min(t_insertion, evol_cutoff_), !NLL_EXPANDED);
+  int idipa = -1;
+  if (t_insertion >= evol_cutoff_) {
+    NLL_evolution_ = false;
+    return;
+  }
+  Momentum ka = generate_first_insertion(t_insertion, idipa);
+  if (event_.bad) {
+    NLL_evolution_ = false;
+    return;
+  }
+  event_cache_->copy(event_);
+
+  // branch1 = NLL virtual corrections to Z^{(0)}
+  perform_branch_single_insertion(t_insertion, -1, ka);
+  event_.retrieve(event_cache_);
+
+  // branch2 = NLL real corrections to Z^{(0)}
+  // split the dipole that emits ka
+  assert(do_split(idipa, ka));
+  
+  // cache the event with the first insertion in;
+  // to be used later for the second insertion
+  event_cache_->copy(event_);
+  
+  // evolve and retrieve the event before carrying on
+  perform_branch_single_insertion(t_insertion, 1, ka);
+  event_.retrieve(event_cache_);
+
+  // branch1 = Z^{(1)} evolution double real with kta > ktb'
+  perform_branch_double_insertion(t_insertion, idipa, 1, ka);
+  event_.retrieve(event_cache_);
+
+  // branch2 = Z^{(1)} evolution collinear counterterm with kta > ktb'
+  perform_branch_double_insertion(t_insertion, idipa, 2, ka);
+  event_.retrieve(event_cache_);
+  
+  // branch3 = Z^{(1)} evolution double real with kta > ktb
+  perform_branch_double_insertion(t_insertion, idipa, 3, ka);
+  event_.retrieve(event_cache_);
+  
+  // branch4 = Z^{(1)} evolution collinear counterterm with kta > ktb
+  perform_branch_double_insertion(t_insertion, idipa, 4, ka);
+  NLL_evolution_ = false;
+}
+
 
 //----------------------------------------------------------------------
 /// perform the Z0 evolution
@@ -197,8 +268,37 @@ void Shower::perform_branch0(double ta, const Momentum& ka) {
 }
 
 //----------------------------------------------------------------------
+/// perform the perturbative NLL insertion of the Z0 evolution (when NLL_EXPANDED=true)
+void Shower::perform_branch_single_insertion(double t_insertion,  int ibranch, const Momentum& ka) {
+  // calculate weight of the insertion
+  double asmur = alphas2(xmur_);
+  double L     = ln_kt(t_insertion);
+  double rho   = 2.0*asmur*b0*L;
+  double w     = -asmur*(-(b0*KCMW) + 2.0*M_PI*b1*log(1.0 - rho))/(2.0*b0*M_PI*(1 - rho));
+  
+  // the above weight integrates to
+  //    (2*asmur*asmur*b0*b1*L + asmur*b1*log(1 - 2*asmur*b0*L))
+  //    / (4.*b0*b0*(-1 + 2*asmur*b0*L)*M_PI)
+  //    + (asmur*KCMW*asmur*b0*L)/(4*b0*M_PI*M_PI - 8*b0*asmur*b0*L*M_PI*M_PI)
+  //    + 2*asmur*b0*b0*M_PI*(-2*asmur*b0*L*log(xmur_) + log(xQ_))
+  //    / (4.*b0*b0*(-1 + 2*asmur*b0*L)*M_PI*M_PI);
+   
+  // update event weight and return
+  event_.weight*= (ibranch == -1 ? 1.0-w : w);
+
+  // for real corrections, check if the insertion is in the slice
+  if (ibranch == 1) {
+    if (obs_->add_entries_in_region(ka.stored_E()*ka, 
+      t_insertion, L-log(xQ_), event_.weight, &event_.axis())) return;
+  }
+  // now complete the evolution until the cutoff scale
+  evolve_scale(t_insertion, evol_cutoff_, !NLL_EXPANDED);
+  return;
+}
+
+//----------------------------------------------------------------------
 /// perform the Z1 evolution pieces
-void Shower::perform_branch(double t_insertion, int idipa, int ibranch, const Momentum& ka) {
+void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int ibranch, const Momentum& ka) {
   int idipb = -1;
   Momentum kb = generate_second_insertion(t_insertion, idipa, idipb, (ibranch==3 or ibranch==4));
   if (event_.bad) return;
@@ -268,7 +368,7 @@ void Shower::perform_branch(double t_insertion, int idipa, int ibranch, const Mo
     assert(do_split(idipb, kb));
 
   // now check if any emission is in the slice and fill the histogram accordingly
-  double C1 = (NLL_evolution_ ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
+  double C1 = (((!NLL_EXPANDED) and NLL_evolution_) ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
   if (ibranch==1 or ibranch==3) {
     bool thetaIn_ka = obs_->in_region(emitter->stored_E()*(*emitter), &event_.axis());
     bool thetaIn_kb = obs_->in_region(emission->stored_E()*(*emission), &event_.axis());
@@ -310,9 +410,11 @@ void Shower::perform_branch(double t_insertion, int idipa, int ibranch, const Mo
     } else if (ibranch==2) delete emitter;
   }
   // now complete the evolution until the cutoff scale
-  evolve_scale(t_insertion, evol_cutoff_);
+  evolve_scale(t_insertion, evol_cutoff_, !NLL_EXPANDED);
 }
 
+//----------------------------------------------------------------------
+/// generate first insertion
 Momentum Shower::generate_first_insertion(double& t_insertion, int& idip_insertion) {
   t_insertion += - log(rng.uniform_pos()) / (2.0 * CA * event_.eta_tot);
   double lnkt = ln_kt(t_insertion);
@@ -325,10 +427,11 @@ Momentum Shower::generate_first_insertion(double& t_insertion, int& idip_inserti
   
   Momentum insertion = event_[idip_insertion].radiate(lnkt - log(xQ_), rng.uniform_pos(),
 					    rng.uniform_pos());
-  assert(do_split(idip_insertion, insertion));
   return insertion;
 }
 
+//----------------------------------------------------------------------
+/// generate second insertion
 Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& idip_insertion, bool dipole_kt_ordering) {
   if (rng.uniform() < 0.5) {
     idip_insertion = event_[idip].delta_rap()!=0.0 ? idip : event_[idip].right_neighbour();
@@ -375,7 +478,7 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
 //----------------------------------------------------------------------
 /// return the t scale for a given ln kt value
 double Shower::t_scale(double lnkt) const {  
-  if (evl_grid_ and NLL_evolution_) return evl_grid_->t(lnkt, xmur_, xQ_);
+  if ((!NLL_EXPANDED) and evl_grid_ and NLL_evolution_) return evl_grid_->t(lnkt, xmur_, xQ_);
   // at LL:
   //   t = Log[1/(2 - 2 b0 alphas L)]/(4 pi b0)
   return -log(1 - 2*asmur_*b0*lnkt)/(4.*b0*M_PI);
@@ -385,7 +488,7 @@ double Shower::t_scale(double lnkt) const {
 //----------------------------------------------------------------------
 /// return the ln(kt) for a given evolution scale
 double Shower::ln_kt(double t) const {
-  if (evl_grid_ and NLL_evolution_) return evl_grid_->ln_kt(t);
+  if ((!NLL_EXPANDED) and evl_grid_ and NLL_evolution_) return evl_grid_->ln_kt(t);
   /// at LL:
   ///    t = Log[1/(1 - 2 b0 alphas L)]/(4 pi b0)
   /// => ln(kt) = (1 - exp(-4 pi t b0))/(2 alphas b0)
