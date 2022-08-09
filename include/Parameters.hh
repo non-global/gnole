@@ -28,6 +28,12 @@ static const double b1 = (17*CA*CA - 5*CA*NF - 3*CF*NF)/(24*M_PI*M_PI);
 static const double KCMW = CA*(67.0/18.0 - M_PI*M_PI/6.0) - TF*NF*10.0/9.0;
 static const double H1 = CF*(-8.0 + 7.0/6.0*M_PI*M_PI);
   
+// the following flag is for private use only.
+// it decides whether in the expanded (NLL_EXPANDED = true)
+// NLL corrections, it uses two extra branches in addition
+// to the default algorithm, or just one
+static const bool use_two_extra_branches_in_nll_expanded = false;
+
 // external variables
 extern double lnktmax;
 extern double RAPMAX;

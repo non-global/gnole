@@ -22,9 +22,7 @@ void Shower::run(int nev, const std::string& fn) {
         evolve_insertion(tstart);
       } else {
         // run the soft factor S2 with one-loop evolution convoluted with H2 at NLO
-        evolve_scale(tstart);
-        // run the two loop corrections to S2 convoluted with H2 at LO
-        reset(); // reset two jet configuration
+        // followed by the two loop corrections to S2 convoluted with H2 at LO
         evolve_insertion_expanded(tstart);
       }
       // run the soft factor S3 with one-loop evolution convoluted with H3 at LO
@@ -209,7 +207,8 @@ void Shower::evolve_insertion_expanded(double t) {
   double lnkt_insertion = log(xQ_) + rng.uniform()*(1.0/(2.0*asmur_*b0) - log(xQ_));
   double t_insertion = t_scale(lnkt_insertion);
   
-  evolve_scale(t, min(t_insertion, evol_cutoff_), !NLL_EXPANDED);
+  // evolve S2 at one loop kernel and include H2 at one loop
+  evolve_scale(t, min(t_insertion, evol_cutoff_));
   int idipa = -1;
   if (t_insertion >= evol_cutoff_) {
     NLL_evolution_ = false;
@@ -222,11 +221,11 @@ void Shower::evolve_insertion_expanded(double t) {
   }
   event_cache_->copy(event_);
 
-  // branch1 = NLL virtual corrections to Z^{(0)}
-  perform_branch_single_insertion(t_insertion, -1, ka);
+  // branch -2 = NLL virtual corrections to Z^{(0)}
+  perform_branch_single_insertion(t_insertion, -2, ka);
   event_.retrieve(event_cache_);
 
-  // branch2 = NLL real corrections to Z^{(0)}
+  // branch -1 = NLL real corrections to Z^{(0)}
   // split the dipole that emits ka
   assert(do_split(idipa, ka));
   
@@ -235,8 +234,14 @@ void Shower::evolve_insertion_expanded(double t) {
   event_cache_->copy(event_);
   
   // evolve and retrieve the event before carrying on
-  perform_branch_single_insertion(t_insertion, 1, ka);
+  perform_branch_single_insertion(t_insertion, -1, ka);
   event_.retrieve(event_cache_);
+
+  // branch0 = Z^{(0)} evolution at LL
+  if (use_two_extra_branches_in_nll_expanded) {
+    perform_branch0(t_insertion, ka);
+    event_.retrieve(event_cache_);
+  }
 
   // branch1 = Z^{(1)} evolution double real with kta > ktb'
   perform_branch_double_insertion(t_insertion, idipa, 1, ka);
@@ -271,23 +276,48 @@ void Shower::perform_branch0(double ta, const Momentum& ka) {
 /// perform the perturbative NLL insertion of the Z0 evolution (when NLL_EXPANDED=true)
 void Shower::perform_branch_single_insertion(double t_insertion,  int ibranch, const Momentum& ka) {
   // calculate weight of the insertion
+  // ibranch = -1 => reals
+  // ibranch = -2 => virtuals
   double asmur = alphas2(xmur_);
   double L     = ln_kt(t_insertion);
   double rho   = 2.0*asmur*b0*L;
-  double w     = -asmur*(-(b0*KCMW) + 2.0*M_PI*b1*log(1.0 - rho))/(2.0*b0*M_PI*(1 - rho));
-  
-  // the above weight integrates to
-  //    (2*asmur*asmur*b0*b1*L + asmur*b1*log(1 - 2*asmur*b0*L))
-  //    / (4.*b0*b0*(-1 + 2*asmur*b0*L)*M_PI)
-  //    + (asmur*KCMW*asmur*b0*L)/(4*b0*M_PI*M_PI - 8*b0*asmur*b0*L*M_PI*M_PI)
-  //    + 2*asmur*b0*b0*M_PI*(-2*asmur*b0*L*log(xmur_) + log(xQ_))
-  //    / (4.*b0*b0*(-1 + 2*asmur*b0*L)*M_PI*M_PI);
-   
+
   // update event weight and return
-  event_.weight*= (ibranch == -1 ? 1.0-w : w);
+  if (use_two_extra_branches_in_nll_expanded) {
+    // Version 1: add two extra branches describing real and
+    // virtual expansions of the NLL correction to the Sudakov
+    // Derivation:
+    // the ll evolution takes place separately in branch0,
+    // so we only need to correct for the pure NLL corrections.
+    // accept the emission with weight w = weight_nll,
+    // and reject it with weight -w
+    // The virtual corrections coming from the Sudakov are now
+    // multiplying a purely NLL correction and therefore cancel
+    // in the difference real - virtual up to NNLL corrections
+    double w = -asmur*(-(b0*KCMW) + 2.0*M_PI*b1*log(1.0 - rho))/(2.0*b0*M_PI*(1 - rho));
+    event_.weight*= (ibranch == -2 ? -w : w);
+  } else {
+    // Version 2 (slightly more efficient): 
+    // correct directly the LL evolution with a probability weight,
+    // and incorporate directly branch0 in the reals (branch -1)
+    // this effectively adds a single branch to the existing algorithm
+    // (comment out branch0 call in Shower::evolve_insertion_expanded())
+    // Derivation:
+    // accept emission with a probability w = (weight_ll+weight_nll)/weight_ll
+    // reject it (virtuals) with probability 1-w
+    // In this way, the total virtual probability will be 
+    // w_virt = 1 - weight_ll (from the LL Sudakov) + (1 - w) * weight_ll
+    //        = 1 - (weight_ll + weight_nll)
+    // Finally, include the H2 hard factor in the weight of the real to multiply
+    // the sole LL contribution
+    double w = 1.0 - asmur*(-(b0*KCMW) + 2.0*M_PI*b1*log(1.0 - rho))/(2.0*b0*M_PI*(1 - rho));
+    if (ibranch == -1) w += asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1);
+    event_.weight*= (ibranch == -2 ? 1.0-w : w);
+  }
 
   // for real corrections, check if the insertion is in the slice
-  if (ibranch == 1) {
+  // and if so fill the histogram
+  if (ibranch == -1) {
     if (obs_->add_entries_in_region(ka.stored_E()*ka, 
       t_insertion, L-log(xQ_), event_.weight, &event_.axis())) return;
   }
