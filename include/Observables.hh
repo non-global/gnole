@@ -98,7 +98,7 @@ protected:
 class Slice : public Observable {
 public:
   /// constructor
-  Slice(double delta_rap, double p, int nbin = 100, double maxlnkt = 10.0, double maxt = EVOLCUT)
+  Slice(double delta_rap, double p, int nbin = 100, double maxlnkt = lnktmax, double maxt = EVOLCUT)
     : Observable(p, nbin, maxlnkt, maxt), delta_rap_(delta_rap) {}
 
   /// description
