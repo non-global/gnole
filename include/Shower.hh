@@ -104,6 +104,8 @@ protected:
   
   /// event containing dipole configuration
   Event event_;
+  /// Evolution time of the last emission (for truncated shower)
+  double tlast_;
   /// renormalisation scale
   double xmur_;
   /// resummation scale
@@ -128,8 +130,9 @@ protected:
   Momentum gluon_;
   /// cached information for insertion
   Event * event_cache_;
-  /// cutoff for the evolution
+  /// cutoffs for the evolution
   static constexpr double evol_cutoff_ = EVOLCUT;
+  static constexpr double landau_pole_tolerance_ = 0.95;
 };
 
 #endif //__SHOWER_HH__

@@ -26,8 +26,8 @@ void Shower::run(int nev, const std::string& fn) {
         evolve_insertion_expanded(tstart);
       }
       // run the soft factor S3 with one-loop evolution convoluted with H3 at LO
-      run_threejet(tstart, false);
       run_threejet(tstart, true);
+      run_threejet(tstart, false);
     }
   }
   write(nev, fn);
@@ -118,7 +118,10 @@ bool Shower::do_split(int idip, Momentum& emsn) {
 //----------------------------------------------------------------------
 /// evolve the shower down to specified scale or down to cutoff scale
 void Shower::evolve_scale(double t, double tend, bool include_as_constant) {
-  if (event_.weight == 0.0 or event_.bad) return;
+  //if (event_.weight == 0.0 or event_.bad) return;
+  if (event_.bad) return;
+  tlast_ = t;
+
   while ((t += - log(rng.uniform_pos()) / (2.0 * CA * event_.eta_tot)) < tend) {
     // increase by amount chosen with distribution e^(-2*CA*sum_rap)    
     int idip = choose_emitter();
@@ -128,6 +131,7 @@ void Shower::evolve_scale(double t, double tend, bool include_as_constant) {
       event_.bad = true; // setting this to avoid starting another evolution later
       break;
     }
+
     //fixed coupling: if (event_.eta_tot < 0.0 or event_.eta_tot!=event_.eta_tot) break;
     assert(idip>=0);
     // the momentum of the gluon is xQ*exp(-lnkt)=exp[-(lnkt+ln(xQ))]
@@ -136,10 +140,11 @@ void Shower::evolve_scale(double t, double tend, bool include_as_constant) {
 					 rng.uniform_pos());
     if (!do_split(idip, emsn)) continue;
 
+    tlast_ = t;
     // if emission is in observed region, add to histogram and stop the evolution
     double C1 = ((include_as_constant and NLL_evolution_) ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
     if (obs_->add_entries_in_region(emsn.stored_E()*emsn, t, lnkt-log(xQ_),
-				    C1*event_.weight, &event_.axis())) {
+	  		    C1 * event_.weight, &event_.axis())) {
       event_.bad = true; // setting this to avoid starting another evolution later
       break;
     }
@@ -150,7 +155,8 @@ void Shower::evolve_scale(double t, double tend, bool include_as_constant) {
 //----------------------------------------------------------------------
 /// evolve the shower down to cutoff scale
 void Shower::evolve_insertion(double t) {
-  if (event_.weight == 0.0 or event_.bad) return;
+  //if (event_.weight == 0.0 or event_.bad) return;
+  if (event_.bad) return;
   NLL_evolution_ = true;
 
   // generate log(Q/kt) in [log(xQ), 1/(2 as b0)]
@@ -158,19 +164,18 @@ void Shower::evolve_insertion(double t) {
   double lnkt_insertion = log(xQ_) + rng.uniform()*(1.0/(2.0*asmur_*b0) - log(xQ_));
   double t_insertion = t_scale(lnkt_insertion);
   
-  evolve_scale(t, min(t_insertion, evol_cutoff_));
+  evolve_scale(t, std::min(t_insertion, evol_cutoff_));
   int idipa = -1;
   if (t_insertion >= evol_cutoff_) {
     NLL_evolution_ = false;
     return;
   }
   Momentum ka = generate_first_insertion(t_insertion, idipa);
-  assert(do_split(idipa, ka));
   if (event_.bad) {
     NLL_evolution_ = false;
     return;
   }
-
+  assert(do_split(idipa, ka));
   event_cache_->copy(event_);
   
   // branch0 = Z^{(0)} evolution
@@ -199,49 +204,63 @@ void Shower::evolve_insertion(double t) {
 /// evolve the shower down to cutoff scale while fully expanding 
 /// out NLL corrections
 void Shower::evolve_insertion_expanded(double t) {  
-  if (event_.weight == 0.0 or event_.bad) return;
+  //if (event_.weight == 0.0 or event_.bad) return;
+  if (event_.bad) return;
   NLL_evolution_ = true;
 
   // generate log(Q/kt) in [log(xQ), 1/(2 as b0)]
   // generate scale t from log(Q/kt)
-  double lnkt_insertion = log(xQ_) + rng.uniform()*(1.0/(2.0*asmur_*b0) - log(xQ_));
+  double r = rng.uniform();
+  double n = 5.;
+  // introduce partition of unity to identify the scale of the insertion
+  double lnkt_insertion = log(xQ_) + pow(r,n)*landau_pole_tolerance_*(1.0/(2.0*asmur_*b0) - log(xQ_));
   double t_insertion = t_scale(lnkt_insertion);
   
-  // evolve S2 at one loop kernel and include H2 at one loop
-  evolve_scale(t, min(t_insertion, evol_cutoff_));
   int idipa = -1;
   if (t_insertion >= evol_cutoff_) {
     NLL_evolution_ = false;
     return;
   }
+
+  // evolve S2 at one loop kernel and include H2 at one loop
+  evolve_scale(t, std::min(t_insertion, evol_cutoff_));
+
+  // generate the insertion
   Momentum ka = generate_first_insertion(t_insertion, idipa);
   if (event_.bad) {
     NLL_evolution_ = false;
     return;
   }
-  event_cache_->copy(event_);
-
-  // branch -2 = NLL virtual corrections to Z^{(0)}
-  perform_branch_single_insertion(t_insertion, -2, ka);
-  event_.retrieve(event_cache_);
-
-  // branch -1 = NLL real corrections to Z^{(0)}
-  // split the dipole that emits ka
-  assert(do_split(idipa, ka));
-  
-  // cache the event with the first insertion in;
-  // to be used later for the second insertion
-  event_cache_->copy(event_);
-  
-  // evolve and retrieve the event before carrying on
-  perform_branch_single_insertion(t_insertion, -1, ka);
-  event_.retrieve(event_cache_);
 
   // branch0 = Z^{(0)} evolution at LL
-  if (use_two_extra_branches_in_nll_expanded) {
+  if (!insertion_is_part_of_NLL_ensemble) {
+    event_cache_->copy(event_);
     perform_branch0(t_insertion, ka);
     event_.retrieve(event_cache_);
   }
+
+  // now handle extra NLL branches
+  if (insertion_is_part_of_NLL_ensemble) {
+    event_.weight  = n*pow(r,n-1) * landau_pole_tolerance_*(1.0/(2.0*asmur_*b0) - log(xQ_)) / (ln_kt(t_insertion) - ln_kt(tlast_));
+  } else {
+    event_.weight  = n*pow(r,n-1) * landau_pole_tolerance_*(1.0/(2.0*asmur_*b0) - log(xQ_)) * event_.eta_tot;
+  }
+
+  // branch -2 = NLL virtual corrections to Z^{(0)}
+  event_cache_->copy(event_);
+  perform_branch_single_insertion(t_insertion, -2, ka);
+  event_.retrieve(event_cache_);
+
+  // split the dipole that emits ka
+  // branch -1 = NLL real corrections to Z^{(0)}
+  assert(do_split(idipa, ka));
+
+  // cache the event with the first insertion in;
+  // to be used later for the second insertion.  
+  // Then evolve and retrieve the event before carrying on
+  event_cache_->copy(event_);
+  perform_branch_single_insertion(t_insertion, -1, ka);
+  event_.retrieve(event_cache_);
 
   // branch1 = Z^{(1)} evolution double real with kta > ktb'
   perform_branch_double_insertion(t_insertion, idipa, 1, ka);
@@ -266,9 +285,11 @@ void Shower::evolve_insertion_expanded(double t) {
 void Shower::perform_branch0(double ta, const Momentum& ka) {
   if (event_.bad) return;
   // if emission is in observed region, add to histogram and stop the evolution
-  double C1 = (NLL_evolution_ ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
-  if (obs_->add_entries_in_region(ka.stored_E()*ka, ta, ln_kt(ta)-log(xQ_),
-				  C1*event_.weight, &event_.axis())) return;
+  if (!(NLL_EXPANDED and (!insertion_is_part_of_NLL_ensemble))) {
+    double C1 = (NLL_evolution_ ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
+    if (obs_->add_entries_in_region(ka.stored_E()*ka, ta, ln_kt(ta)-log(xQ_),
+		  		  C1*event_.weight, &event_.axis())) return;
+  }
   evolve_scale(ta, evol_cutoff_);
 }
 
@@ -278,12 +299,11 @@ void Shower::perform_branch_single_insertion(double t_insertion,  int ibranch, c
   // calculate weight of the insertion
   // ibranch = -1 => reals
   // ibranch = -2 => virtuals
-  double asmur = alphas2(xmur_);
   double L     = ln_kt(t_insertion);
-  double rho   = 2.0*asmur*b0*L;
+  double rho   = 2.0*asmur_*b0*L;
 
   // update event weight and return
-  if (use_two_extra_branches_in_nll_expanded) {
+  if (!insertion_is_part_of_NLL_ensemble) {
     // Version 1: add two extra branches describing real and
     // virtual expansions of the NLL correction to the Sudakov
     // Derivation:
@@ -294,14 +314,15 @@ void Shower::perform_branch_single_insertion(double t_insertion,  int ibranch, c
     // The virtual corrections coming from the Sudakov are now
     // multiplying a purely NLL correction and therefore cancel
     // in the difference real - virtual up to NNLL corrections
-    double w = -asmur*(-(b0*KCMW) + 2.0*M_PI*b1*log(1.0 - rho))/(2.0*b0*M_PI*(1 - rho));
-    event_.weight*= (ibranch == -2 ? -w : w);
+    double w = 2. * CA * asmur_ / (2.0*M_PI) / (1.0 - rho);
+    w *= - asmur_*(-(b0*KCMW) + 2.0*M_PI*b1*log(1.0 - rho))/(2.0*b0*M_PI*(1 - rho));
+    // update event weight
+    event_.weight *= (ibranch == -2 ? -w : w);
   } else {
     // Version 2 (slightly more efficient): 
     // correct directly the LL evolution with a probability weight,
     // and incorporate directly branch0 in the reals (branch -1)
     // this effectively adds a single branch to the existing algorithm
-    // (comment out branch0 call in Shower::evolve_insertion_expanded())
     // Derivation:
     // accept emission with a probability w = (weight_ll+weight_nll)/weight_ll
     // reject it (virtuals) with probability 1-w
@@ -310,9 +331,10 @@ void Shower::perform_branch_single_insertion(double t_insertion,  int ibranch, c
     //        = 1 - (weight_ll + weight_nll)
     // Finally, include the H2 hard factor in the weight of the real to multiply
     // the sole LL contribution
-    double w = 1.0 - asmur*(-(b0*KCMW) + 2.0*M_PI*b1*log(1.0 - rho))/(2.0*b0*M_PI*(1 - rho));
+    double w = - asmur_*(-(b0*KCMW) + 2.0*M_PI*b1*log(1.0 - rho))/(2.0*b0*M_PI*(1 - rho)) * event_.weight;
     if (ibranch == -1) w += asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1);
-    event_.weight*= (ibranch == -2 ? 1.0-w : w);
+    // reset event weight
+    event_.weight = (ibranch == -2 ? -w : 1. + w);
   }
 
   // for real corrections, check if the insertion is in the slice
@@ -446,8 +468,9 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
 //----------------------------------------------------------------------
 /// generate first insertion
 Momentum Shower::generate_first_insertion(double& t_insertion, int& idip_insertion) {
-  t_insertion += - log(rng.uniform_pos()) / (2.0 * CA * event_.eta_tot);
+  if (!(NLL_EXPANDED and (!insertion_is_part_of_NLL_ensemble))) t_insertion += - log(rng.uniform_pos()) / (2.0 * CA * event_.eta_tot);
   double lnkt = ln_kt(t_insertion);
+
   if (event_.bad or (2.0*asmur_*b0*lnkt >= 1.0) or (evl_grid_ and t_insertion >= evl_grid_->xlim()) or (lnkt > lnktmax)) {
     event_.bad=true;
     return Momentum();
@@ -509,21 +532,27 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
 /// return the t scale for a given ln kt value
 double Shower::t_scale(double lnkt) const {  
   if ((!NLL_EXPANDED) and evl_grid_ and NLL_evolution_) return evl_grid_->t(lnkt, xmur_, xQ_);
+  // fixed coupling:
+  //if ((!NLL_EXPANDED) and evl_grid_ and NLL_evolution_) return asmur_/(2.*M_PI)*lnkt * (1.0 + asmur_ / (2.*M_PI) * KCMW);
   // at LL:
   //   t = Log[1/(2 - 2 b0 alphas L)]/(4 pi b0)
   return -log(1 - 2*asmur_*b0*lnkt)/(4.*b0*M_PI);
   // fixed coupling: return as*lnkt/(2.0*M_PI);
+  //return asmur_/(2.*M_PI)*lnkt;
 }
 
 //----------------------------------------------------------------------
 /// return the ln(kt) for a given evolution scale
 double Shower::ln_kt(double t) const {
   if ((!NLL_EXPANDED) and evl_grid_ and NLL_evolution_) return evl_grid_->ln_kt(t);
+  // fixed coupling
+  //if ((!NLL_EXPANDED) and evl_grid_ and NLL_evolution_) return (2.*M_PI)/(asmur_*(1.0 + asmur_ / (2.*M_PI) * KCMW))*t;
   /// at LL:
   ///    t = Log[1/(1 - 2 b0 alphas L)]/(4 pi b0)
   /// => ln(kt) = (1 - exp(-4 pi t b0))/(2 alphas b0)
   return (1 - std::exp(-4*M_PI*t*b0))/(2.0*asmur_*b0);
   // fixed coupling: return 2.0*M_PI*t/as;
+  //return (2.*M_PI)/asmur_*t;
 }
 
 //----------------------------------------------------------------------

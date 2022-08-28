@@ -8,7 +8,7 @@
 #define LNEVOLMAX 4
 #define LNEVOLMIN -8
 #endif
-#define NEVLGRID  500
+#define NEVLGRID  1000
 
 // evolution cutoff
 #define EVOLCUT   1.0
@@ -32,7 +32,7 @@ static const double H1 = CF*(-8.0 + 7.0/6.0*M_PI*M_PI);
 // it decides whether in the expanded (NLL_EXPANDED = true)
 // NLL corrections, it uses two extra branches in addition
 // to the default algorithm, or just one
-static const bool use_two_extra_branches_in_nll_expanded = false;
+static const bool insertion_is_part_of_NLL_ensemble = true;
 
 // external variables
 extern double lnktmax;

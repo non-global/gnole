@@ -53,7 +53,9 @@ public:
       + 2*asmur*b0*b0*M_PI*(-2*asmur*b0*L*log(xmur) + log(xQ))/
       (4.*b0*b0*(-1 + 2*asmur*b0*L)*M_PI*M_PI);
     // at LL:
-    //   return -log(1 - 2*asmur*b0*L)/(4.*b0*M_PI);
+    //return -log(1 - 2*asmur*b0*L)/(4.*b0*M_PI);
+    // fixed coupling:
+    //return asmur/(2.*M_PI)*L  * (1.0 + asmur / (2.*M_PI) * KCMW);
   }
 
   //----------------------------------------------------------------------

@@ -44,7 +44,8 @@ int main(int argc, char ** argv) {
   // observable
   double p = cmdline.value("-p",-1.0);
   int nbins = cmdline.value("-nbins",100);
-  Slice slice(dy, p, nbins);
+  double obsmax = cmdline.value("-obsmax", cutoff);
+  Slice slice(dy, p, nbins, obsmax);
 
   // output
   string filename  = cmdline.value<string>("-out","output.dat");
