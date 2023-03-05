@@ -42,9 +42,10 @@ inline double Mgg_full_large_Nc(const Momentum& p, const Momentum& pbar,
 				const Momentum& k1,const Momentum& k2) {
   double W12 = dot_product(p,pbar)/(dot_product(p,k1)*dot_product(k1,k2)*dot_product(k2,pbar));
   double W21 = dot_product(p,pbar)/(dot_product(p,k2)*dot_product(k2,k1)*dot_product(k1,pbar));
-  // double W1 = dot_product(p,pbar)/(dot_product(p,k1)*dot_product(k1,pbar));
-  // double W2 = dot_product(p,pbar)/(dot_product(p,k2)*dot_product(k2,pbar));
-  double S = W12 + W21; // cancels against CF^2: (- W1*W2);
+  double S = W12 + W21; 
+  //double W1 = dot_product(p,pbar)/(dot_product(p,k1)*dot_product(k1,pbar));
+  //double W2 = dot_product(p,pbar)/(dot_product(p,k2)*dot_product(k2,pbar));
+  //double S = W12 + W21 - W1*W2; // last piece cancels against CF^2: (W1*W2);
   double R = (dot_product(p,k1)*dot_product(k2,pbar)+dot_product(p,k2)*dot_product(k1,pbar))
     /(dot_product(p,k1+k2)*dot_product(k1+k2,pbar));
   double J2 = (dot_product(p,k1)*dot_product(k2,pbar)-dot_product(p,k2)*dot_product(k1,pbar))

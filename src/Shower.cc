@@ -27,7 +27,7 @@ void Shower::run(int nev, const std::string& fn) {
       }
       // run the soft factor S3 with one-loop evolution convoluted with H3 at LO
       run_threejet(tstart, true);
-      run_threejet(tstart, false);
+      run_threejet(tstart, false, true);
     }
   }
   write(nev, fn);
@@ -35,8 +35,8 @@ void Shower::run(int nev, const std::string& fn) {
 
 //----------------------------------------------------------------------
 /// run the threejet piece
-void Shower::run_threejet(double tstart, bool soft) {
-  reset(true, soft);
+void Shower::run_threejet(double tstart, bool soft, bool use_cached_variables) {
+  reset(true, soft, use_cached_variables);
   // flip sign for LL term
   if (soft) event_.weight = -event_.weight;
   evolve_scale(tstart);
@@ -51,20 +51,21 @@ void Shower::run_threejet(double tstart, bool soft) {
 
 //----------------------------------------------------------------------
 /// reset the dipoles to an initial qqbar pair along the z axis
-void Shower::reset(bool threejet, bool soft) {
+void Shower::reset(bool threejet, bool soft, bool use_cached_variables) {
   event_.bad=false;
   if (!threejet) {
     event_.reset_twojet();
   } else if (soft){
     bool in_region = false;
-    event_.reset_threejet_LL(xmur_, xQ_, rng.uniform(), rng.uniform(), rng.uniform(), gluon_);
+    //event_.reset_threejet_LL(xmur_, xQ_, rng.uniform(), rng.uniform(), rng.uniform(), gluon_);
+    event_.reset_threejet_soft(xmur_, xQ_, rng.uniform(), rng.uniform(), rng.uniform(), gluon_);
     Shower::do_split(0,gluon_);
     if (std::abs(gluon_.rap()) > RAPMAX) event_.bad = true;
     in_region = obs_->in_region(gluon_, &event_.axis());
     if (in_region or event_.weight==0.0) event_.bad = true;
   } else {
     bool in_region = false;
-    event_.reset_threejet(xmur_, xQ_, rng.uniform(), rng.uniform(), rng.uniform(), gluon_);
+    event_.reset_threejet(xmur_, xQ_, rng.uniform(), rng.uniform(), rng.uniform(), gluon_, use_cached_variables);
     Shower::do_split(0,gluon_);
 
     // make sure we don't have any hard partons in the observed region, otherwise set weight to 0
@@ -161,7 +162,9 @@ void Shower::evolve_insertion(double t) {
 
   // generate log(Q/kt) in [log(xQ), 1/(2 as b0)]
   // generate scale t from log(Q/kt)
-  double lnkt_insertion = log(xQ_) + rng.uniform()*(1.0/(2.0*asmur_*b0) - log(xQ_));
+  double r = rng.uniform();
+  double n = 1.;
+  double lnkt_insertion = log(xQ_) + pow(r,n)*landau_pole_tolerance_*(1.0/(2.0*asmur_*b0) - log(xQ_));
   double t_insertion = t_scale(lnkt_insertion);
   
   evolve_scale(t, std::min(t_insertion, evol_cutoff_));
@@ -176,6 +179,9 @@ void Shower::evolve_insertion(double t) {
     return;
   }
   assert(do_split(idipa, ka));
+
+  // jacobian associated to the insertion
+  double w = n*pow(r,n-1) * landau_pole_tolerance_*(1.0/(2.0*asmur_*b0) - log(xQ_)) / (ln_kt(t_insertion) - ln_kt(tlast_));
   event_cache_->copy(event_);
   
   // branch0 = Z^{(0)} evolution
@@ -183,18 +189,22 @@ void Shower::evolve_insertion(double t) {
   event_.retrieve(event_cache_);
 
   // branch1 = Z^{(1)} evolution double real with kta > ktb'
+  event_.weight = w;
   perform_branch_double_insertion(t_insertion, idipa, 1, ka);
   event_.retrieve(event_cache_);
 
   // branch2 = Z^{(1)} evolution collinear counterterm with kta > ktb'
+  event_.weight = w;
   perform_branch_double_insertion(t_insertion, idipa, 2, ka);
   event_.retrieve(event_cache_);
   
   // branch3 = Z^{(1)} evolution double real with kta > ktb
+  event_.weight = w;
   perform_branch_double_insertion(t_insertion, idipa, 3, ka);
   event_.retrieve(event_cache_);
   
   // branch4 = Z^{(1)} evolution collinear counterterm with kta > ktb
+  event_.weight = w;
   perform_branch_double_insertion(t_insertion, idipa, 4, ka);
   NLL_evolution_ = false;
 }
@@ -352,7 +362,16 @@ void Shower::perform_branch_single_insertion(double t_insertion,  int ibranch, c
 /// perform the Z1 evolution pieces
 void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int ibranch, const Momentum& ka) {
   int idipb = -1;
-  Momentum kb = generate_second_insertion(t_insertion, idipa, idipb, (ibranch==3 or ibranch==4));
+  Momentum kb;
+  // branches 3 & 4 cancel with the SO part of branches 1 & 2 up to subleading corrections
+  if (ibranch==3 or ibranch==4) return;
+  if (ibranch==1 or ibranch==3) {
+    kb = generate_second_insertion(t_insertion, idipa, idipb, (ibranch==3 or ibranch==4));
+    cache_second_insertion(kb, idipb, event_.bad);
+  } else {
+    retrieve_second_insertion(kb, idipb, event_.bad);
+  }
+
   if (event_.bad) return;
   // add in the weight of the second insertion
   event_.weight*=2.0;
@@ -360,8 +379,9 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
   const Momentum* spec_left;
   const Momentum* spec_right;
   const Momentum* emission = &kb;
+  double tab;
   double w = 1.0;
-  
+
   if (idipb == idipa) { // emitter is to the right
     // here (1a) emitted b and split into (1b) and (ba)
     // with the index of (1a), idipa, now corresponding to
@@ -372,14 +392,15 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
     if (ibranch==1 or ibranch==2) {
       w = double_emsn_antenna(*spec_left, (emission->stored_E())*(*emission),
 			      (emitter->stored_E())*(*emitter), *spec_right)
-	        /double_emsn_antenna_strongly_ordered(*spec_left, emission->stored_E()*(*emission),
+	          /double_emsn_antenna_strongly_ordered(*spec_left, emission->stored_E()*(*emission),
 					  emitter->stored_E()*(*emitter), *spec_right);
+      w -= 1.; // remove SO limit
     }
     // replace emitter with massless version of parent for ibranch 2
     if (ibranch==2) {
       Momentum* kab = new Momentum(emitter->stored_E()*(*emitter) + emission->stored_E()*(*emission));
       *kab = (1.0/kab->E())*(*kab);
-      reconstruct_parent(*spec_left, *spec_right, *kab);
+      reconstruct_parent(*spec_left, *spec_right, *kab, tab);
       emitter = kab;
       // now updated the dipoles containing ka
       event_.eta_tot -= event_[idipb].delta_rap() + event_[event_[idipb].right_neighbour()].delta_rap();
@@ -387,6 +408,10 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
       event_[event_[idipb].right_neighbour()].left(DipoleEnd(*kab));
       event_.eta_tot += event_[idipb].delta_rap() + event_[event_[idipb].right_neighbour()].delta_rap();
     }
+    // split the dipole into two for branches 1 and 3
+    if (ibranch==1 or ibranch==3) 
+      assert(do_split(idipb, kb));
+
   } else { // emitter is to the left
     // here (a2), with index event[idipa].right_neighbour,
     // emitted b, with the index of (ab) being idipb
@@ -396,14 +421,15 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
     if (ibranch==1 or ibranch==2) {
       w = double_emsn_antenna(*spec_left, (emitter->stored_E())*(*emitter),
 			      (emission->stored_E())*(*emission), *spec_right)
-	        /double_emsn_antenna_strongly_ordered(*spec_left, emitter->stored_E()*(*emitter),
+	          /double_emsn_antenna_strongly_ordered(*spec_left, emitter->stored_E()*(*emitter),
 					  emission->stored_E()*(*emission), *spec_right);
+      w -= 1.; // remove SO limit
     }
     // replace emitter with massless version of parent for ibranch 2
     if (ibranch==2) {
       Momentum* kab = new Momentum(emitter->stored_E()*(*emitter) + emission->stored_E()*(*emission));
       *kab = (1.0/kab->E())*(*kab);
-      reconstruct_parent(*spec_left, *spec_right, *kab);
+      reconstruct_parent(*spec_left, *spec_right, *kab, tab);
       emitter = kab;
       // now updated the dipoles containing ka
       event_.eta_tot -= event_[idipb].delta_rap() + event_[event_[idipb].left_neighbour()].delta_rap();
@@ -411,56 +437,72 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
       event_[event_[idipb].left_neighbour()].right(DipoleEnd(*kab));
       event_.eta_tot += event_[idipb].delta_rap() + event_[event_[idipb].left_neighbour()].delta_rap();
     }
+    // split the dipole into two for branches 1 and 3
+    if (ibranch==1 or ibranch==3) {
+      assert(do_split(idipb, kb));
+      // update spec_right with the new dipole indices. Only if
+      // emitter is to the left (new dipole is added at the end of the chain)
+      spec_right = &event_[event_.size()-1].right().momentum();
+    }
   }
-  
-  // update the sign, and flip sign for branches 2 and 3
-  event_.weight*= ((ibranch==1 or ibranch==4) ? w : -w);
-  // split the dipole into two for branches 1 and 3
-  if (ibranch==1 or ibranch == 3)
-    assert(do_split(idipb, kb));
+
+  // flip the sign of the weight for branches 2 and 3
+  event_.weight *= ((ibranch==1 or ibranch==4) ? w : -w);
+  if (event_.weight != event_.weight) {
+    event_.bad = true;
+    return;
+  }
 
   // now check if any emission is in the slice and fill the histogram accordingly
   double C1 = (((!NLL_EXPANDED) and NLL_evolution_) ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
   if (ibranch==1 or ibranch==3) {
     bool thetaIn_ka = obs_->in_region(emitter->stored_E()*(*emitter), &event_.axis());
     bool thetaIn_kb = obs_->in_region(emission->stored_E()*(*emission), &event_.axis());
+
     // both emissions ka and kb are inside the slice 
     if (thetaIn_ka and thetaIn_kb) {
       if (ibranch==1) {
         // ==> bin the parent (defined in the massless scheme @ NLL)
-      	Momentum kab = emitter->stored_E()*(*emitter) + emission->stored_E()*(*emission);
-	      kab = (1.0/kab.E())*kab;
-	      reconstruct_parent(*spec_left, *spec_right, kab);
-	      if (obs_->add_entries_in_region(kab.stored_E()*kab, t_insertion,
-					ln_kt(t_insertion) - log(xQ_),
-					C1*event_.weight, &event_.axis()))
-	      return;
+        Momentum kab = emitter->stored_E()*(*emitter) + emission->stored_E()*(*emission);
+        kab = (1.0/kab.E())*kab;
+        reconstruct_parent(*spec_left, *spec_right, kab, tab);
+        // sanity check: the following assert is only satisfied with Option 1 & 3 in reconstruct_parent
+        // since otherwise the rapidity of the parent in the lab frame is slightly modified
+        //assert(obs_->add_entries_in_region(kab.stored_E()*kab, tab,
+				//	ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis()));
+        return;
       } else {
         // ==> bin the emitter (much harder than the emission in LL kinematics)
 	      assert(obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
-				  ln_kt(t_insertion) - log(xQ_),
-				  C1*event_.weight, &event_.axis()));
+				  ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis()));
 	      return;
       }
     // only one of the two emissions ka and kb is inside the slice 
     } else if (thetaIn_ka or thetaIn_kb) {
       obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
-				  ln_kt(t_insertion) - log(xQ_),
-				  C1*event_.weight, &event_.axis());
-      obs_->add_entries_in_region(emission->stored_E()*(*emission), t_insertion,
-				  ln_kt(t_insertion) - log(xQ_),
-				  C1*event_.weight, &event_.axis());
+				  ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis());
+      //obs_->add_entries_in_region(emission->stored_E()*(*emission), t_insertion,
+			//	  ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis());
+      obs_->add_entries_in_region(emission->stored_E()*(*emission), t_second_insertion_,
+				  ln_kt(t_second_insertion_) - log(xQ_), C1*event_.weight, &event_.axis());
       return;
     }
+
   // in branches 2 and 4 bin the emitter  
   } else if (ibranch==2 or ibranch==4) {
-    if (obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
-				    ln_kt(t_insertion) - log(xQ_),
-				    C1*event_.weight, &event_.axis())) {
-      if (ibranch==2) delete emitter; //clean up from the allocation above
-      return;
-    } else if (ibranch==2) delete emitter;
+    if (ibranch==2) {
+      if (obs_->add_entries_in_region(emitter->stored_E()*(*emitter), tab,
+				    ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis())) {
+        delete emitter; //clean up from the allocation above
+        return;
+      }
+      delete emitter;
+    } else {
+      if (obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
+              ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis())) return;
+    }
   }
+
   // now complete the evolution until the cutoff scale
   evolve_scale(t_insertion, evol_cutoff_, !NLL_EXPANDED);
 }
@@ -487,44 +529,71 @@ Momentum Shower::generate_first_insertion(double& t_insertion, int& idip_inserti
 /// generate second insertion
 Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& idip_insertion, bool dipole_kt_ordering) {
   if (rng.uniform() < 0.5) {
-    idip_insertion = event_[idip].delta_rap()!=0.0 ? idip : event_[idip].right_neighbour();
-    // PM Jul 2022: set weight to zero if selected dipole has no phase space for radiating
-    //if (event_[idip].delta_rap() != 0.0) {
-    //  idip_insertion = idip;
-    //} else {
-    //  event_.bad = true;
-    //  return Momentum();
-    //}
+    //idip_insertion = event_[idip].delta_rap()!=0.0 ? idip : event_[idip].right_neighbour();
+    // Alternative: set weight to zero if selected dipole has no phase space for radiating
+    if (event_[idip].delta_rap() != 0.0) {
+      idip_insertion = idip;
+    } else {
+      event_.bad = true;
+      return Momentum();
+    }
   } else {
     assert(event_[idip].right_neighbour()>=0);
-    idip_insertion = (event_[event_[idip].right_neighbour()].delta_rap() != 0.0) ?
-      event_[idip].right_neighbour() : idip;
-    // PM Jul 2022: set weight to zero if selected dipole has no phase space for radiating
-    //if (event_[event_[idip].right_neighbour()].delta_rap() != 0.0) {
-    //  idip_insertion = event_[idip].right_neighbour();
-    //} else {
-    //  event_.bad = true;
-    //  return Momentum();
-    //}  
+    //idip_insertion = (event_[event_[idip].right_neighbour()].delta_rap() != 0.0) ?
+    //  event_[idip].right_neighbour() : idip;
+    // Alternative: set weight to zero if selected dipole has no phase space for radiating
+    if (event_[event_[idip].right_neighbour()].delta_rap() != 0.0) {
+      idip_insertion = event_[idip].right_neighbour();
+    } else {
+      event_.bad = true;
+      return Momentum();
+    }  
   }
+
+  // generate insertion with unit dipole transverse momentum
   Momentum insertion = event_[idip_insertion].radiate(0.0, rng.uniform_pos(),
 						      rng.uniform_pos());
   double f2 = 1.0;
   int rn = event_[idip].right_neighbour();
+  Momentum emitter = event_[idip].right().momentum();
   if (!dipole_kt_ordering) 
     f2 = 0.5*dot_product(event_[idip].left().momentum(),event_[rn].right().momentum())
       / dot_product(event_[idip].left().momentum(),insertion.stored_E()*insertion)
       / dot_product(insertion.stored_E()*insertion,event_[rn].right().momentum());
-  double tb = t_scale(ln_kt(t_insertion)-0.5*log(f2));
-  tb += - log(rng.uniform_pos()) / (2.0 * CA * event_[idip_insertion].delta_rap());
+  double ln_buffer = 0.5*log(f2);
+  double tb = t_scale(ln_kt(t_insertion) - ln_buffer);
+  // Cut events with a t above the starting scale t=0.
+  // Moreover, the starting tb will be nan if 
+  // ln_kt(t_insertion)-ln_buffer is above the landau pole
+  // (this effectively acts as a collinear cutoff)
+  while (true) {
+    tb += - log(rng.uniform_pos()) / (2.0 * CA * event_[idip_insertion].delta_rap());
+    if ((tb > 0.) or (tb != tb)) break;
+  }
   double lnkt = ln_kt(tb);
-  
+
   if (lnkt!=lnkt or (2.0*asmur_*b0*lnkt >= 1.0)
-      or (evl_grid_ and t_insertion >= evl_grid_->xlim()) or (lnkt > lnktmax)) {
+      or (evl_grid_ and tb >= evl_grid_->xlim()) or (lnkt > lnktmax)) {
     event_.bad = true;
     return Momentum();
   }
+  // update emission's energy
   insertion.stored_E(insertion.stored_E()*exp(-lnkt+log(xQ_)));
+  // sanity check: kt ordering in parent dipole frame
+  double kta2 = 2./dot_product(event_[idip].left().momentum(),event_[rn].right().momentum())
+      * dot_product(event_[idip].left().momentum(),emitter.stored_E() * emitter)
+      * dot_product(emitter.stored_E() * emitter,event_[rn].right().momentum());
+  double ktb2 = 2./dot_product(event_[idip].left().momentum(),event_[rn].right().momentum())
+      * dot_product(event_[idip].left().momentum(),insertion.stored_E()*insertion)
+      * dot_product(insertion.stored_E()*insertion,event_[rn].right().momentum());
+  if ((!dipole_kt_ordering) and (kta2 < ktb2)) {
+    event_.bad = true;
+    return Momentum();
+  }
+
+  //t_second_insertion_ = tb; // define emission's time in the emitting dipole frame
+  t_second_insertion_ = t_scale(-0.5*log(ktb2)); // define emission's time in the parent dipole frame
+  if (t_second_insertion_ != t_second_insertion_) t_second_insertion_ = EVOLCUT;
   return insertion;
 }
 
@@ -568,31 +637,48 @@ void Shower::write(int nev, const std::string& fn) const {
 
 //----------------------------------------------------------------------
 /// reconstruct the parent kab such that it is massless
-void Shower::reconstruct_parent(const Momentum& spec_left, const Momentum& spec_right, Momentum& kab) const {
-  // Create parent in dipole frame (with parent dipole aligned along z axis)
-  Momentum k12 = spec_left+spec_right;
-  Momentum k1 = spec_left;
-  double storedE = kab.stored_E();
-  kab.unboost(k12);
-  k1.unboost(k12);
-  double theta=k1.theta();
-  double phi=k1.phi();
-  kab.rotate(theta, phi);
-  double nab = kab.rap();
-  double ktab = sqrt(kab.px()*kab.px()+kab.py()*kab.py());
-  kab = Momentum(kab.px(), kab.py(), ktab*sinh(nab), ktab*cosh(nab));
-  kab.unrotate(theta,phi);
-  kab.boost(k12);
-  kab.stored_E(kab.E()*storedE);
-  kab = (1.0/kab.E())*kab;
-  
-  // Create parent directly in lab frame
+void Shower::reconstruct_parent(const Momentum& spec_left, const Momentum& spec_right, Momentum& kab, double& tab) const {
+
+  // Option 1: keep parent massive.
+  // Recombination is possible in any frame due to linearity of Lorentz transformations
+  // compute lnkt=ln(Q/kt) in the parent dipole frame to calculate evolution time
+  double m2 = dot_product(kab.stored_E()*kab, kab.stored_E()*kab);
+  double lnktab = -log(sqrt(2.*dot_product(spec_left, kab.stored_E()*kab)
+                *dot_product(spec_right, kab.stored_E()*kab)/dot_product(spec_left, spec_right) - m2));
+
+  // Option 2: create massless parent in dipole frame (with parent dipole aligned along z axis)
+  //Momentum k12 = spec_left+spec_right;
+  //Momentum k1 = spec_left;
+  //kab *= kab.stored_E();
+  //kab.unboost(k12);
+  //k1.unboost(k12);
+  //double theta=k1.theta();
+  //double phi=k1.phi();
+  //kab.rotate(theta, phi);
+  //double nab = kab.rap();
+  //double ktab = sqrt(kab.px()*kab.px()+kab.py()*kab.py());
+  //kab = Momentum(kab.px(), kab.py(), ktab*sinh(nab), ktab*cosh(nab));
+  //kab.unrotate(theta,phi);
+  //kab.boost(k12);
+  //kab.stored_E(kab.E());
+  //kab = (1.0/kab.E())*kab;
+  //// compute lnkt=ln(Q/kt) in the parent dipole frame to calculate evolution time
+  //double lnktab = -log(ktab);
+
+  // Option 3: create massless parent directly in lab frame
   //kab = kab.stored_E()*kab;
   //double nab = kab.rap();
   //double ktab = sqrt(kab.px()*kab.px()+kab.py()*kab.py());
   //kab = Momentum(kab.px(), kab.py(), ktab*sinh(nab), ktab*cosh(nab));
   //kab.stored_E(kab.E());
   //kab = (1.0/kab.stored_E())*kab;
+  //// compute lnkt=ln(Q/kt) in the parent dipole frame to calculate evolution time
+  //double lnktab = -log(sqrt(2.*dot_product(spec_left, kab.stored_E()*kab)
+  //              *dot_product(spec_right, kab.stored_E()*kab)/dot_product(spec_left, spec_right)));
+
+  // finally compute evolution time
+  tab = t_scale(lnktab);
+  if (tab != tab) tab = EVOLCUT;
 
   return;
 }

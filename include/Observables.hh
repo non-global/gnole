@@ -14,7 +14,7 @@ class Observable {
 public:
   /// constructor setting up the histograms
   Observable(double p, int nbin = 100, double maxlnkt = 10.0, double maxt = EVOLCUT)
-    : p_(p),  dSdlnET_(0.0, maxlnkt, nbin), dSdt_(0.0, maxt, nbin) {}
+    : p_(p),  dSdlambda_(0.0, 0.5, 10), dSdlnET_(0.0, maxlnkt, nbin), dSdt_(0.0, maxt, nbin) {}
   
   /// description
   virtual std::string description() const = 0;
@@ -29,11 +29,16 @@ public:
       // dSdlnE_. add_entry(-log(emsn.E()), weight);
 
       double ET2;
-      if (thrust_axis) {
-	     double costh = dot3(emsn, *thrust_axis)/emsn.E();
-	     ET2 = emsn.E() * emsn.E() * (1.0 - costh*costh);
-      } else ET2 = emsn.px()*emsn.px() + emsn.py()*emsn.py();
+      if (SL_OBSERVABLE) {
+        ET2 = exp(-2.*lnkt); // LL approximation for the observable
+      } else {
+        if (thrust_axis) {
+        double costh = dot3(emsn, *thrust_axis)/emsn.E();
+        ET2 = emsn.E() * emsn.E() * (1.0 - costh*costh);
+        } else ET2 = emsn.px()*emsn.px() + emsn.py()*emsn.py();
+      }
       dSdlnET_. add_entry(-Ltilde(sqrt(ET2)), weight);
+      dSdlambda_. add_entry(-as*Ltilde(sqrt(ET2)), weight);
       return true;
     }
     return false;
@@ -75,6 +80,9 @@ public:
     *ostr << "# dSdlnET (cumulative)" << std::endl;
     output_inverse_cumulative(dSdlnET_, ostr, 1.0/nev);
     *ostr << std::endl << std::endl;
+    *ostr << "# dSdlambda (cumulative)" << std::endl;
+    output_inverse_cumulative(dSdlambda_, ostr, 1.0/nev);
+    *ostr << std::endl << std::endl;
   }
 
   /// returns true if emission is within region of interest
@@ -85,7 +93,7 @@ public:
 protected:
   double p_;
   // SimpleHist dSdt_, dSdlnkt_, dSdlnE_;
-  SimpleHist dSdlnET_, dSdt_;
+  SimpleHist dSdlambda_, dSdlnET_, dSdt_;
   double Ltilde(double v) {
     if (p_==-1) return log(v);
     return -1/p_*log(1/pow(v, p_) + 1);

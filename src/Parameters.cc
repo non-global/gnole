@@ -17,6 +17,10 @@ void set_alphas_at_Q(double alphas) {as = alphas;};
 bool NLL_EXPANDED = false;
 void set_nll_expanded(bool nll_expanded) {NLL_EXPANDED = nll_expanded;};
 
+// set SL_OBSERVABLE
+bool SL_OBSERVABLE = false;
+void set_sl_observable(bool sl_observable) {SL_OBSERVABLE = sl_observable;};
+
 // first order evolution of alphas 
 double alphas1(double lnkt) {
   if (2.0 * as * b0 * lnkt >= 1.0) return 0.0;

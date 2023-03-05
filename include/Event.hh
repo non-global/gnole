@@ -79,13 +79,22 @@ public:
   double reset_threejet_LL(double xmur, double xq, double r1, double r2, double r3, Momentum& gluon);
 
   /// reset shower to three jet configuration and return ln kt, taken from Dokshitzer paper
-  double reset_threejet(double xmur, double xq, double r1, double r2, double r3, Momentum& gluon);
-  
+  double reset_threejet(double xmur, double xq, double r1, double r2, double r3, Momentum& gluon, bool use_cached_variables = false);
+
+  /// reset shower to soft three jet configuration and return ln kt, taken from Dokshitzer paper
+  double reset_threejet_soft(double xmur, double xq, double r1, double r2, double r3, Momentum& gluon);
+
 private:
   /// vector of dipoles
   std::vector<Dipole> dipoles_;
   
   /// thrust axis
   Momentum thrust_axis_;
+
+  /// IR cutoff for soft subtraction
+  double xQ0 = 1.0;
+
+  /// cache three-jet kinematics for local subtraction
+  double eta13_, lnkt13_, phi13_;
 };
 #endif //__EVENT_HH__

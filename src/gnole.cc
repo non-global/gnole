@@ -41,6 +41,10 @@ int main(int argc, char ** argv) {
   bool nll_expanded = cmdline.present("-expand-nll");
   set_nll_expanded(nll_expanded);
 
+  // check whether the observable should be computed in SL approximation
+  bool sl_observable = cmdline.present("-sl-obs");
+  set_sl_observable(sl_observable);
+
   // observable
   double p = cmdline.value("-p",-1.0);
   int nbins = cmdline.value("-nbins",100);

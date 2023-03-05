@@ -55,10 +55,10 @@ public:
   
 protected:
   /// run the threejet piece
-  virtual void run_threejet(double tstart, bool soft = false);
+  virtual void run_threejet(double tstart, bool soft = false, bool use_cached_variables = false);
   
   /// reset the dipoles to an initial qqbar pair along the z axis
-  void reset(bool threejet = false, bool soft = false);
+  void reset(bool threejet = false, bool soft = false, bool use_cached_variables = false);
 
   /// choose an emitting dipole
   int choose_emitter() const;
@@ -100,12 +100,12 @@ protected:
   void write(int nev, const std::string& fn) const;
 
   /// reconstruct momentum of parent
-  void reconstruct_parent(const Momentum& spec_left, const Momentum& spec_right, Momentum& kab) const;
+  void reconstruct_parent(const Momentum& spec_left, const Momentum& spec_right, Momentum& kab, double& tab) const;
   
   /// event containing dipole configuration
   Event event_;
   /// Evolution time of the last emission (for truncated shower)
-  double tlast_;
+  double tlast_ = 0.;
   /// renormalisation scale
   double xmur_;
   /// resummation scale
@@ -128,11 +128,28 @@ protected:
   GSLRandom rng;
   /// momentum of hard gluon
   Momentum gluon_;
+
+  /// cache second insertion info
+  double t_second_insertion_; 
+  Momentum momentum_cache_;
+  int  idip_cache_;
+  bool event_bad_cache_;
+  void cache_second_insertion(Momentum kb, int idipb, bool event_bad) {
+    momentum_cache_  = kb;
+    idip_cache_      = idipb;
+    event_bad_cache_ = event_bad;
+  }
+  void retrieve_second_insertion(Momentum& kb, int& idipb, bool& event_bad) {
+    kb        = momentum_cache_;
+    idipb     = idip_cache_;
+    event_bad = event_bad_cache_;
+  }
+  
   /// cached information for insertion
   Event * event_cache_;
   /// cutoffs for the evolution
   static constexpr double evol_cutoff_ = EVOLCUT;
-  static constexpr double landau_pole_tolerance_ = 0.95;
+  static constexpr double landau_pole_tolerance_ = 1.;
 };
 
 #endif //__SHOWER_HH__

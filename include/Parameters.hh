@@ -17,9 +17,10 @@
 #define CA        3.0
 #define TF        0.5
 // Large Nc
-//#define CF        1.5
+#define CF        1.5
+//#define NF        0.
 // Full Nc
-#define CF        1.33333333333333333333
+//#define CF        1.33333333333333333333
 #define NF        5.0
 
 // constants
@@ -40,6 +41,8 @@ extern double RAPMAX;
 extern double as;
 // flag to expand out NLL corrections
 extern bool NLL_EXPANDED;
+// flag to compute observable in SL approximation
+extern bool SL_OBSERVABLE;
 
 // set infrared cutoff of the evolution
 void set_lnktmax(double lnkt);
@@ -52,6 +55,9 @@ void set_alphas_at_Q(double alphas);
 
 // set NLL_EXPANDED flag
 void set_nll_expanded(bool nll_expanded);
+
+// compute observable in SL approximation
+void set_sl_observable(bool sl_observable);
 
 // first order evolution of alphas 
 double alphas1(double lnkt);
