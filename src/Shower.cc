@@ -221,20 +221,18 @@ void Shower::evolve_insertion_expanded(double t) {
   // generate log(Q/kt) in [log(xQ), 1/(2 as b0)]
   // generate scale t from log(Q/kt)
   double r = rng.uniform();
-  double n = 5.;
+  double n = 1.;
   // introduce partition of unity to identify the scale of the insertion
   double lnkt_insertion = log(xQ_) + pow(r,n)*landau_pole_tolerance_*(1.0/(2.0*asmur_*b0) - log(xQ_));
   double t_insertion = t_scale(lnkt_insertion);
-  
+
+  // evolve S2 at one loop kernel and include H2 at one loop
+  evolve_scale(t, std::min(t_insertion, evol_cutoff_));
   int idipa = -1;
   if (t_insertion >= evol_cutoff_) {
     NLL_evolution_ = false;
     return;
   }
-
-  // evolve S2 at one loop kernel and include H2 at one loop
-  evolve_scale(t, std::min(t_insertion, evol_cutoff_));
-
   // generate the insertion
   Momentum ka = generate_first_insertion(t_insertion, idipa);
   if (event_.bad) {
