@@ -466,8 +466,8 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
         reconstruct_parent(*spec_left, *spec_right, kab, tab);
         // sanity check: the following assert is only satisfied with Option 1 & 3 in reconstruct_parent
         // since otherwise the rapidity of the parent in the lab frame is slightly modified
-        //assert(obs_->add_entries_in_region(kab.stored_E()*kab, tab,
-				//	ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis()));
+        assert(obs_->add_entries_in_region(kab.stored_E()*kab, tab,
+					ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis()));
         return;
       } else {
         // ==> bin the emitter (much harder than the emission in LL kinematics)
