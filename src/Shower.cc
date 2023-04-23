@@ -589,7 +589,7 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
     //rho = 0; // fixed coupling (for fixed order tests)
     second_insertion_weight_  = (1.0/(2.0*asmur_*b0) - (ln_kt(t_insertion) - ln_buffer));
     second_insertion_weight_ *= 2. * CA * asmur_ / (2.0*M_PI) / (1.0 - rho) * event_[idip_insertion].delta_rap();
-    double tb = t_scale(lnkt);
+    tb = t_scale(lnkt);
   }
 
   if (lnkt!=lnkt or (2.0*asmur_*b0*lnkt >= 1.0)
