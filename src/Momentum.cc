@@ -37,7 +37,7 @@ double Momentum::phi() const {
 //----------------------------------------------------------------------
 /// rotate jet according to theta and phi
 void Momentum::rotate(double thetaIn, double phiIn) {
-
+  // rotation of an angle -theta w.r.t. the y axis and -phi w.r.t. the z axis
   double cthe = cos(thetaIn);
   double sthe = sin(thetaIn);
   double cphi = cos(phiIn);
@@ -58,7 +58,7 @@ void Momentum::rotate(double thetaIn, double phiIn) {
 //----------------------------------------------------------------------
 /// perform inverse rotation of jet
 void Momentum::unrotate(double thetaIn, double phiIn) {
-
+  // inverse of a rotation of an angle -theta w.r.t. the y axis and -phi w.r.t. the z axis
   double cthe = cos(thetaIn);
   double sthe = sin(thetaIn);
   double cphi = cos(phiIn);
@@ -79,19 +79,7 @@ void Momentum::unrotate(double thetaIn, double phiIn) {
 //----------------------------------------------------------------------
 /// perform rotation of jet according to cos and sin of angles
 void Momentum::rotate2(double cthe, double sthe, double cphi, double sphi) {
-  /* rotation:
-    cthe*cphi     -sphi      sthe*cphi
-    cthe*sphi      cphi      sthe*cphi
-      -sthe          0         cthe
-  */
-  // double tmpx =  cthe * cphi * px_ -    sphi * py_ + sthe * cphi * pz_;
-  // double tmpy =  cthe * sphi * px_ +    cphi * py_ + sthe * sphi * pz_;
-  // double tmpz = -sthe *        px_ +                cthe *        pz_;
-  /* inverse rotation:
-    cthe*cphi     cthe*sphi     -sthe
-      -sphi         cphi          0
-    sthe*cphi     sthe*sphi      cthe
-  */
+  // rotation of an angle -theta w.r.t. the y axis and phi w.r.t. the x axis
   double tmpx =  cthe * px_ - sthe * sphi * py_ - sthe * cphi * pz_;
   double tmpy =  -sphi *       pz_ + cphi        * py_;
   double tmpz =  sthe * px_ + cthe * sphi * py_ + cthe * cphi * pz_;
@@ -99,6 +87,19 @@ void Momentum::rotate2(double cthe, double sthe, double cphi, double sphi) {
   py_         = tmpy;
   pz_         = tmpz;
 }
+
+//----------------------------------------------------------------------
+/// perform rotation of jet according to cos and sin of angles
+void Momentum::unrotate2(double cthe, double sthe, double cphi, double sphi) {
+  // inverse of a rotation of an angle -theta w.r.t. the y axis and phi w.r.t. the x axis
+  double tmpx =  cthe * px_         + sthe        * pz_;
+  double tmpy =  -sphi * sthe * px_ + cphi * py_ + cthe * sphi * pz_;
+  double tmpz =  -sthe * cphi * px_ - sphi * py_ + cthe * cphi * pz_;
+  px_         = tmpx;
+  py_         = tmpy;
+  pz_         = tmpz;
+}
+
 //----------------------------------------------------------------------
 /// multiply the jet's momentum by the coefficient
 Momentum & Momentum::operator*=(double coeff) {

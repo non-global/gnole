@@ -144,6 +144,8 @@ protected:
     idipb     = idip_cache_;
     event_bad = event_bad_cache_;
   }
+  bool   weighted_second_insertion = false; // if true the second insertion is generated at FO with a weight (instead of with a Sudakov)
+  double second_insertion_weight_;
   
   /// cached information for insertion
   Event * event_cache_;

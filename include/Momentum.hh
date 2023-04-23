@@ -13,10 +13,10 @@
 /// contains a four vector, adapted from FastJet's PseudoJet
 class Momentum {
 public:
-  Momentum() : px_(0),py_(0),pz_(0),E_(0), stored_E_(0.0){}
+  Momentum() : px_(0),py_(0),pz_(0),E_(0),stored_E_(0.0),stored_phi_dip_(0.0) {}
   /// constructor
   Momentum(double px, double py, double pz, double E)
-    : px_(px),py_(py),pz_(pz),E_(E), stored_E_(E) {}
+    : px_(px),py_(py),pz_(pz),E_(E),stored_E_(E),stored_phi_dip_(1.0) {}
 
   /// mass squared
   double m2() const {return E_*E_ - px_*px_ - py_*py_ - pz_*pz_;}
@@ -61,15 +61,23 @@ public:
   /// modify full energy without normalisation
   void stored_E(double E) {stored_E_=E;}
 
+  /// phi of the emission in the emitting dipole frame
+  double stored_phi_dip() const {return stored_phi_dip_;}
+
+  /// modify phi of the emission in the emitting dipole frame
+  void stored_phi_dip(double phi_dip) {stored_phi_dip_=phi_dip;}
+
   /// theta
   double theta() const {return atan2(sqrt(px_*px_ + py_*py_), pz_);}
 
   /// rotate
   void rotate(double theta, double phi);
-  /// rotate
+  /// unrotate
   void unrotate(double theta, double phi);
-  /// rotate
+  /// rotate2
   void rotate2(double ctht, double stht, double cphi, double sphi);
+  /// unrotate2
+  void unrotate2(double ctht, double stht, double cphi, double sphi);
   
   /// multiplication by double
   Momentum & operator*=(double);
@@ -84,7 +92,7 @@ public:
 
 private:
   /// four momentum components
-  double px_, py_ ,pz_, E_, stored_E_;
+  double px_, py_ ,pz_, E_, stored_E_, stored_phi_dip_;
 
   /// maximum rapidity value
   static constexpr double maxrap_ = 1e5;

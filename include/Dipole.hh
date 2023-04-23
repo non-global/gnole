@@ -72,8 +72,6 @@ public:
 
     // produce a gluon relative to a fictional emitter along z axis
     double exp_eta = std::exp(eta);
-    // std::cout<<" "  << exp_eta << std::endl;
-    // need to add kt here for NLL
     double alpha = std::exp(-lnkt) * exp_eta;
     double beta  = std::exp(-lnkt) / exp_eta;
     double gluon_px = std::exp(-lnkt) * sin(phi);
@@ -82,6 +80,8 @@ public:
     double gluon_E  = 0.5 * (alpha + beta);
 
     // rotate gluon so that it is as if emitted from particle axis
+    // alternatively use gluon.unrotate2(ctht, stht, cphi, sphi)
+    // lboost is aligned with the z axis by lboost.rotate2(ctht, stht, cphi, sphi)
     double mdls2 = sqrt(lboost.py()*lboost.py() + lboost.pz()*lboost.pz());
     double mdls3 = sqrt(mdls2*mdls2 + lboost.px()*lboost.px());
     double ctht = mdls2/mdls3;
@@ -97,9 +97,14 @@ public:
     gluon_py = temp3;
     gluon_pz = temp4;
     Momentum gluon(gluon_px, gluon_py, gluon_pz, gluon_E);
+
     // boost back to original frame
     gluon.boost(cm2orig);
     gluon.stored_E(gluon.E());
+    // calculate and store phi in the com frame of the dipole
+    // (needed for comparisons to Becher et al.)
+    gluon.stored_phi_dip(phi);
+    // normalise gluon momentum
     gluon = (1.0/gluon.E())*gluon;
     return gluon;
   }

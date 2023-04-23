@@ -39,6 +39,19 @@ public:
       }
       dSdlnET_. add_entry(-Ltilde(sqrt(ET2)), weight);
       dSdlambda_. add_entry(-as*Ltilde(sqrt(ET2)), weight);
+      // consistency test: calculate the observable (soft) correction as 
+      // as*dS/dlambda*ln(1/sqrt(f2)) 
+      // Comment call to dSdlambda_.add_entry above and increase the binning of dSdlambda_
+      // This gives the pure NLL correction
+      //if (SL_OBSERVABLE) {
+      //  Momentum p1(0., 0., 1., 1.);
+      //  Momentum p2(0., 0., -1., 1.);
+      //  double f2= 2.*dot_product(emsn, p1)*dot_product(emsn, p2)/dot_product(p1, p2)
+      //          /exp(-2.*lnkt);
+      //  dSdlambda_. add_entry(-as*Ltilde(sqrt(ET2)), - weight * log(f2) * 0.5);
+      //  // compare to expression for one-loop soft function by Becher et al.
+      //  //dSdlambda_. add_entry(-as*Ltilde(sqrt(ET2)), - weight * log(f2/4./pow(sin(emsn.stored_phi_dip()),2)) * 0.5);
+      //}
       return true;
     }
     return false;
@@ -55,19 +68,6 @@ public:
 
   /// write the histograms to file or cout with proper normalisation
   void write(int nev, std::ostream * ostr = (&std::cout)) {
-    //*ostr << "# dSdt" << std::endl;
-    //output(dSdt_, ostr, 1.0/nev/dSdt_.binsize());
-    //*ostr << std::endl << std::endl;
-    //*ostr << "# dSdlnkt" << std::endl;
-    //output(dSdlnkt_, ostr, 1.0/nev/dSdlnkt_.binsize());
-    //*ostr << std::endl << std::endl;
-    //*ostr << "# dSdlnE" << std::endl;
-    //output(dSdlnE_, ostr, 1.0/nev/dSdlnE_.binsize());
-    //*ostr << std::endl << std::endl;
-    //*ostr << "# dSdlnET" << std::endl;
-    //output(dSdlnET_, ostr, 1.0/nev/dSdlnET_.binsize());
-    //*ostr << std::endl << std::endl;
-
     *ostr << "# dSdt (differential)" << std::endl;
     output_differential(dSdt_, ostr, 1.0/nev);
     *ostr << std::endl << std::endl;
@@ -79,6 +79,9 @@ public:
     *ostr << std::endl << std::endl;
     *ostr << "# dSdlnET (cumulative)" << std::endl;
     output_inverse_cumulative(dSdlnET_, ostr, 1.0/nev);
+    *ostr << std::endl << std::endl;
+    *ostr << "# dSdlambda (differential)" << std::endl;
+    output_differential(dSdlambda_, ostr, 1.0/nev);
     *ostr << std::endl << std::endl;
     *ostr << "# dSdlambda (cumulative)" << std::endl;
     output_inverse_cumulative(dSdlambda_, ostr, 1.0/nev);

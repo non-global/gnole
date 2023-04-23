@@ -20,6 +20,8 @@ void Shower::run(int nev, const std::string& fn) {
       if (!NLL_EXPANDED){
         // run the soft factor S2 with two-loop evolution convoluted with H2 at NLO
         evolve_insertion(tstart);
+        //NLL_evolution_ = true;
+        //evolve_scale(tstart);
       } else {
         // run the soft factor S2 with one-loop evolution convoluted with H2 at NLO
         // followed by the two loop corrections to S2 convoluted with H2 at LO
@@ -163,7 +165,7 @@ void Shower::evolve_insertion(double t) {
   // generate log(Q/kt) in [log(xQ), 1/(2 as b0)]
   // generate scale t from log(Q/kt)
   double r = rng.uniform();
-  double n = 1.;
+  double n = 5.;
   double lnkt_insertion = log(xQ_) + pow(r,n)*landau_pole_tolerance_*(1.0/(2.0*asmur_*b0) - log(xQ_));
   double t_insertion = t_scale(lnkt_insertion);
   
@@ -181,6 +183,9 @@ void Shower::evolve_insertion(double t) {
   assert(do_split(idipa, ka));
 
   // jacobian associated to the insertion
+  //double w = n*pow(r,n-1) * landau_pole_tolerance_*(1.0/(2.0*asmur_*b0) - log(xQ_));
+  //w *= 2. * CF * asmur_ / (2.0*M_PI) * event_.eta_tot;
+  //w /= pow(asmur_ / (2.0*M_PI),2.) * CF;
   double w = n*pow(r,n-1) * landau_pole_tolerance_*(1.0/(2.0*asmur_*b0) - log(xQ_)) / (ln_kt(t_insertion) - ln_kt(tlast_));
   event_cache_->copy(event_);
   
@@ -221,7 +226,7 @@ void Shower::evolve_insertion_expanded(double t) {
   // generate log(Q/kt) in [log(xQ), 1/(2 as b0)]
   // generate scale t from log(Q/kt)
   double r = rng.uniform();
-  double n = 1.;
+  double n = 5.;
   // introduce partition of unity to identify the scale of the insertion
   double lnkt_insertion = log(xQ_) + pow(r,n)*landau_pole_tolerance_*(1.0/(2.0*asmur_*b0) - log(xQ_));
   double t_insertion = t_scale(lnkt_insertion);
@@ -379,6 +384,7 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
   const Momentum* emission = &kb;
   double tab;
   double w = 1.0;
+  event_.weight *= second_insertion_weight_;
 
   if (idipb == idipa) { // emitter is to the right
     // here (1a) emitted b and split into (1b) and (ba)
@@ -440,7 +446,7 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
       assert(do_split(idipb, kb));
       // update spec_right with the new dipole indices. Only if
       // emitter is to the left (new dipole is added at the end of the chain)
-      spec_right = &event_[event_.size()-1].right().momentum();
+      spec_right = &event_[event_[idipb].right_neighbour()].right().momentum();
     }
   }
 
@@ -503,6 +509,8 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
 
   // now complete the evolution until the cutoff scale
   evolve_scale(t_insertion, evol_cutoff_, !NLL_EXPANDED);
+  // equivalently (NNLL difference) one can start from the scale of the second insertion
+  //evolve_scale(t_second_insertion_, evol_cutoff_, !NLL_EXPANDED);
 }
 
 //----------------------------------------------------------------------
@@ -549,8 +557,7 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
   }
 
   // generate insertion with unit dipole transverse momentum
-  Momentum insertion = event_[idip_insertion].radiate(0.0, rng.uniform_pos(),
-						      rng.uniform_pos());
+  Momentum insertion = event_[idip_insertion].radiate(0.0, rng.uniform_pos(), rng.uniform_pos());
   double f2 = 1.0;
   int rn = event_[idip].right_neighbour();
   Momentum emitter = event_[idip].right().momentum();
@@ -560,15 +567,30 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
       / dot_product(insertion.stored_E()*insertion,event_[rn].right().momentum());
   double ln_buffer = 0.5*log(f2);
   double tb = t_scale(ln_kt(t_insertion) - ln_buffer);
+  
   // Cut events with a t above the starting scale t=0.
   // Moreover, the starting tb will be nan if 
   // ln_kt(t_insertion)-ln_buffer is above the landau pole
   // (this effectively acts as a collinear cutoff)
-  while (true) {
-    tb += - log(rng.uniform_pos()) / (2.0 * CA * event_[idip_insertion].delta_rap());
-    if ((tb > 0.) or (tb != tb)) break;
+  double lnkt;
+  if (!weighted_second_insertion) {
+    // generate second insertion with a Sudakov (unweighted)
+    while (true) {
+      tb += - log(rng.uniform_pos()) / (2.0 * CA * event_[idip_insertion].delta_rap());
+      if ((tb > 0.) or (tb != tb)) break;
+    }
+    lnkt = ln_kt(tb);
+    second_insertion_weight_ = 1.;
+  } else {
+    // generate second insertion at fixed order (weighted)
+    lnkt = rng.uniform_pos() * (1.0/(2.0*asmur_*b0) - (ln_kt(t_insertion) - ln_buffer)) + (ln_kt(t_insertion) - ln_buffer);
+    // calculate weight
+    double rho = 2.*asmur_*b0*lnkt;
+    //rho = 0; // fixed coupling (for fixed order tests)
+    second_insertion_weight_  = (1.0/(2.0*asmur_*b0) - (ln_kt(t_insertion) - ln_buffer));
+    second_insertion_weight_ *= 2. * CA * asmur_ / (2.0*M_PI) / (1.0 - rho) * event_[idip_insertion].delta_rap();
+    double tb = t_scale(lnkt);
   }
-  double lnkt = ln_kt(tb);
 
   if (lnkt!=lnkt or (2.0*asmur_*b0*lnkt >= 1.0)
       or (evl_grid_ and tb >= evl_grid_->xlim()) or (lnkt > lnktmax)) {
