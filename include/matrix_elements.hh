@@ -25,6 +25,28 @@ inline double integrated_counterterm(double delta_eta) {
   return counter_term;
 }
 
+//----------------------------------------------------------------------
+/// return rapidity difference between kb and kc in the {ka,kd} dipole frame
+inline double dipole_rapidity_difference(const Momentum& ka, const Momentum& kb, const Momentum& kc, const Momentum& kd) {
+  // Lorentz transform into the {ka,kd} dipole frame
+  Momentum k12 = ka+kd;
+  Momentum k1  = ka;
+  Momentum emsn1 = kb.stored_E()*(kb);
+  Momentum emsn2 = kc.stored_E()*(kc);
+  k1.unboost(k12);
+  double theta=k1.theta();
+  double phi=k1.phi();
+  emsn1.unboost(k12);
+  emsn1.rotate(theta, phi);
+  emsn2.unboost(k12);
+  emsn2.rotate(theta, phi);
+  double eta_emsn1 = emsn1.rap();
+  double eta_emsn2 = emsn2.rap();
+  double delta_eta = eta_emsn2 - eta_emsn1;
+
+  return delta_eta;
+}
+
 /// Mgg strongly ordered matrix element in large NC limit
 inline double Mgg_strongly_ordered_large_Nc(const Momentum& p, const Momentum& pbar,
 					    const Momentum& k1,const Momentum& k2) {
@@ -68,6 +90,17 @@ inline double double_emsn_antenna_strongly_ordered(const Momentum& a, const Mome
   // A(a,b,c,d) (c<<b) = A(a,b,d)A(b,c,d) = [2(a d)/((a b)(b d))] * [2(b d)/((b c) (c d))
   //                   = 4 (a d) / ((a b) (b c) (c d))
   return 4*dot_product(a,d)/(dot_product(a,b)*dot_product(b,c)*dot_product(c,d));
+}
+
+/// double emission antenna in strongly ordered limit without the independent emsn piece
+inline double double_emsn_antenna_strongly_ordered_no_independent(const Momentum& a, const Momentum& b,
+						   const Momentum& c, const Momentum& d) {
+  // A(a,b,c,d) (c<<b) = A(a,b,d)A(b,c,d) = [2(a d)/((a b)(b d))] * [2(b d)/((b c) (c d))
+  //                   = 4 (a d) / ((a b) (b c) (c d))
+  double eta = dipole_rapidity_difference(a, b, c, d);  
+  double f   = 1./(1.+exp(2.*eta));
+  return 4*dot_product(a,d)/(dot_product(a,b)*dot_product(b,c)*dot_product(c,d))
+     - f*4*dot_product(a,d)/(dot_product(a,b)*dot_product(b,d))*dot_product(a,d)/(dot_product(a,c)*dot_product(c,d));
 }
 
 /// full double emission antenna

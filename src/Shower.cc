@@ -367,7 +367,7 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
   int idipb = -1;
   Momentum kb;
   // branches 3 & 4 cancel with the SO part of branches 1 & 2 up to subleading corrections
-  if (ibranch==3 or ibranch==4) return;
+  //if (ibranch==3 or ibranch==4) return;
   if (ibranch==1 or ibranch==3) {
     kb = generate_second_insertion(t_insertion, idipa, idipb, (ibranch==3 or ibranch==4));
     cache_second_insertion(kb, idipb, event_.bad);
@@ -383,8 +383,15 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
   const Momentum* spec_right;
   const Momentum* emission = &kb;
   double tab;
-  double w = 1.0;
+  double w = 0.;
   event_.weight *= second_insertion_weight_;
+
+  bool thetaIn_ka = obs_->in_region(emitter->stored_E()*(*emitter), &event_.axis());
+  bool thetaIn_kb = obs_->in_region(emission->stored_E()*(*emission), &event_.axis());
+  //if (thetaIn_ka and thetaIn_kb) return;
+  //if (thetaIn_ka and (!thetaIn_kb)) return;
+  //if ((!thetaIn_ka) and thetaIn_kb) return;
+  //if ((!thetaIn_ka) and (!thetaIn_kb)) return;  
 
   if (idipb == idipa) { // emitter is to the right
     // here (1a) emitted b and split into (1b) and (ba)
@@ -400,6 +407,10 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
 					  emitter->stored_E()*(*emitter), *spec_right);
       w -= 1.; // remove SO limit
     }
+    w += double_emsn_antenna_strongly_ordered_no_independent(*spec_left, (emission->stored_E())*(*emission),
+		     (emitter->stored_E())*(*emitter), *spec_right)
+	        /double_emsn_antenna_strongly_ordered(*spec_left, emission->stored_E()*(*emission),
+			  emitter->stored_E()*(*emitter), *spec_right);
     // replace emitter with massless version of parent for ibranch 2
     if (ibranch==2) {
       Momentum* kab = new Momentum(emitter->stored_E()*(*emitter) + emission->stored_E()*(*emission));
@@ -429,6 +440,10 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
 					  emission->stored_E()*(*emission), *spec_right);
       w -= 1.; // remove SO limit
     }
+    w += double_emsn_antenna_strongly_ordered_no_independent(*spec_left, (emitter->stored_E())*(*emitter),
+	        (emission->stored_E())*(*emission), *spec_right)
+	        /double_emsn_antenna_strongly_ordered(*spec_left, emitter->stored_E()*(*emitter),
+	  		  emission->stored_E()*(*emission), *spec_right);
     // replace emitter with massless version of parent for ibranch 2
     if (ibranch==2) {
       Momentum* kab = new Momentum(emitter->stored_E()*(*emitter) + emission->stored_E()*(*emission));
@@ -460,8 +475,8 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
   // now check if any emission is in the slice and fill the histogram accordingly
   double C1 = (((!NLL_EXPANDED) and NLL_evolution_) ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
   if (ibranch==1 or ibranch==3) {
-    bool thetaIn_ka = obs_->in_region(emitter->stored_E()*(*emitter), &event_.axis());
-    bool thetaIn_kb = obs_->in_region(emission->stored_E()*(*emission), &event_.axis());
+    //bool thetaIn_ka = obs_->in_region(emitter->stored_E()*(*emitter), &event_.axis());
+    //bool thetaIn_kb = obs_->in_region(emission->stored_E()*(*emission), &event_.axis());
 
     // both emissions ka and kb are inside the slice 
     if (thetaIn_ka and thetaIn_kb) {
@@ -508,9 +523,9 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
   }
 
   // now complete the evolution until the cutoff scale
-  evolve_scale(t_insertion, evol_cutoff_, !NLL_EXPANDED);
+  //evolve_scale(t_insertion, evol_cutoff_, !NLL_EXPANDED);
   // equivalently (NNLL difference) one can start from the scale of the second insertion
-  //evolve_scale(t_second_insertion_, evol_cutoff_, !NLL_EXPANDED);
+  evolve_scale(t_second_insertion_, evol_cutoff_, !NLL_EXPANDED);
 }
 
 //----------------------------------------------------------------------
