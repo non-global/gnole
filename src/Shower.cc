@@ -388,10 +388,10 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
 
   bool thetaIn_ka = obs_->in_region(emitter->stored_E()*(*emitter), &event_.axis());
   bool thetaIn_kb = obs_->in_region(emission->stored_E()*(*emission), &event_.axis());
-  //if (thetaIn_ka and thetaIn_kb) return;
+  if (thetaIn_ka and thetaIn_kb) return;
   //if (thetaIn_ka and (!thetaIn_kb)) return;
   //if ((!thetaIn_ka) and thetaIn_kb) return;
-  //if ((!thetaIn_ka) and (!thetaIn_kb)) return;  
+  //if ((!thetaIn_ka) and (!thetaIn_kb)) return;
 
   if (idipb == idipa) { // emitter is to the right
     // here (1a) emitted b and split into (1b) and (ba)
@@ -523,9 +523,9 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
   }
 
   // now complete the evolution until the cutoff scale
-  //evolve_scale(t_insertion, evol_cutoff_, !NLL_EXPANDED);
+  evolve_scale(t_insertion, evol_cutoff_, !NLL_EXPANDED);
   // equivalently (NNLL difference) one can start from the scale of the second insertion
-  evolve_scale(t_second_insertion_, evol_cutoff_, !NLL_EXPANDED);
+  //evolve_scale(t_second_insertion_, evol_cutoff_, !NLL_EXPANDED);
 }
 
 //----------------------------------------------------------------------
@@ -601,7 +601,7 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
     lnkt = rng.uniform_pos() * (1.0/(2.0*asmur_*b0) - (ln_kt(t_insertion) - ln_buffer)) + (ln_kt(t_insertion) - ln_buffer);
     // calculate weight
     double rho = 2.*asmur_*b0*lnkt;
-    //rho = 0; // fixed coupling (for fixed order tests)
+    //double rho = 0; // fixed coupling (for fixed order tests)
     second_insertion_weight_  = (1.0/(2.0*asmur_*b0) - (ln_kt(t_insertion) - ln_buffer));
     second_insertion_weight_ *= 2. * CA * asmur_ / (2.0*M_PI) / (1.0 - rho) * event_[idip_insertion].delta_rap();
     tb = t_scale(lnkt);
@@ -626,8 +626,8 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
     return Momentum();
   }
 
-  //t_second_insertion_ = tb; // define emission's time in the emitting dipole frame
-  t_second_insertion_ = t_scale(-0.5*log(ktb2)); // define emission's time in the parent dipole frame
+  t_second_insertion_ = tb; // define emission's time in the emitting dipole frame
+  //t_second_insertion_ = t_scale(-0.5*log(ktb2)); // define emission's time in the parent dipole frame
   if (t_second_insertion_ != t_second_insertion_) t_second_insertion_ = EVOLCUT;
   return insertion;
 }
@@ -677,28 +677,28 @@ void Shower::reconstruct_parent(const Momentum& spec_left, const Momentum& spec_
   // Option 1: keep parent massive.
   // Recombination is possible in any frame due to linearity of Lorentz transformations
   // compute lnkt=ln(Q/kt) in the parent dipole frame to calculate evolution time
-  double m2 = dot_product(kab.stored_E()*kab, kab.stored_E()*kab);
-  double lnktab = -log(sqrt(2.*dot_product(spec_left, kab.stored_E()*kab)
-                *dot_product(spec_right, kab.stored_E()*kab)/dot_product(spec_left, spec_right) - m2));
+  //double m2 = dot_product(kab.stored_E()*kab, kab.stored_E()*kab);
+  //double lnktab = -log(sqrt(2.*dot_product(spec_left, kab.stored_E()*kab)
+  //              *dot_product(spec_right, kab.stored_E()*kab)/dot_product(spec_left, spec_right) - m2));
 
   // Option 2: create massless parent in dipole frame (with parent dipole aligned along z axis)
-  //Momentum k12 = spec_left+spec_right;
-  //Momentum k1 = spec_left;
-  //kab *= kab.stored_E();
-  //kab.unboost(k12);
-  //k1.unboost(k12);
-  //double theta=k1.theta();
-  //double phi=k1.phi();
-  //kab.rotate(theta, phi);
-  //double nab = kab.rap();
-  //double ktab = sqrt(kab.px()*kab.px()+kab.py()*kab.py());
-  //kab = Momentum(kab.px(), kab.py(), ktab*sinh(nab), ktab*cosh(nab));
-  //kab.unrotate(theta,phi);
-  //kab.boost(k12);
-  //kab.stored_E(kab.E());
-  //kab = (1.0/kab.E())*kab;
-  //// compute lnkt=ln(Q/kt) in the parent dipole frame to calculate evolution time
-  //double lnktab = -log(ktab);
+  Momentum k12 = spec_left+spec_right;
+  Momentum k1 = spec_left;
+  kab *= kab.stored_E();
+  kab.unboost(k12);
+  k1.unboost(k12);
+  double theta=k1.theta();
+  double phi=k1.phi();
+  kab.rotate(theta, phi);
+  double nab = kab.rap();
+  double ktab = sqrt(kab.px()*kab.px()+kab.py()*kab.py());
+  kab = Momentum(kab.px(), kab.py(), ktab*sinh(nab), ktab*cosh(nab));
+  kab.unrotate(theta,phi);
+  kab.boost(k12);
+  kab.stored_E(kab.E());
+  kab = (1.0/kab.E())*kab;
+  // compute lnkt=ln(Q/kt) in the parent dipole frame to calculate evolution time
+  double lnktab = -log(ktab);
 
   // Option 3: create massless parent directly in lab frame
   //kab = kab.stored_E()*kab;
