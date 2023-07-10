@@ -128,7 +128,11 @@ protected:
   GSLRandom rng;
   /// momentum of hard gluon
   Momentum gluon_;
-
+  /// flag for kt ordering in the parent dipole frame
+  bool lab_ordering_;
+  /// flag for kt ordering in the (respective) emitting dipole frame
+  bool dip_ordering_;
+  
   /// cache second insertion info
   double t_second_insertion_; 
   Momentum momentum_cache_;

@@ -366,8 +366,6 @@ void Shower::perform_branch_single_insertion(double t_insertion,  int ibranch, c
 void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int ibranch, const Momentum& ka) {
   int idipb = -1;
   Momentum kb;
-  // branches 3 & 4 cancel with the SO part of branches 1 & 2 up to subleading corrections
-  //if (ibranch==3 or ibranch==4) return;
   if (ibranch==1 or ibranch==3) {
     kb = generate_second_insertion(t_insertion, idipa, idipb, (ibranch==3 or ibranch==4));
     cache_second_insertion(kb, idipb, event_.bad);
@@ -388,6 +386,11 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
 
   bool thetaIn_ka = obs_->in_region(emitter->stored_E()*(*emitter), &event_.axis());
   bool thetaIn_kb = obs_->in_region(emission->stored_E()*(*emission), &event_.axis());
+  //if (ibranch==1 or ibranch==2) {
+  //  if (thetaIn_ka and thetaIn_kb) return;
+  //} else if (ibranch==3 or ibranch==4) {
+  //  if (thetaIn_ka) return;
+  //}
   if (thetaIn_ka and thetaIn_kb) return;
   //if (thetaIn_ka and (!thetaIn_kb)) return;
   //if ((!thetaIn_ka) and thetaIn_kb) return;
@@ -407,10 +410,10 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
 					  emitter->stored_E()*(*emitter), *spec_right);
       w -= 1.; // remove SO limit
     }
-    w += double_emsn_antenna_strongly_ordered_no_independent(*spec_left, (emission->stored_E())*(*emission),
+    if (!(lab_ordering_ && dip_ordering_)) w += double_emsn_antenna_strongly_ordered_no_independent(*spec_left, (emission->stored_E())*(*emission),
 		     (emitter->stored_E())*(*emitter), *spec_right)
-	        /double_emsn_antenna_strongly_ordered(*spec_left, emission->stored_E()*(*emission),
-			  emitter->stored_E()*(*emitter), *spec_right);
+	       /double_emsn_antenna_strongly_ordered(*spec_left, emission->stored_E()*(*emission),
+			    emitter->stored_E()*(*emitter), *spec_right);
     // replace emitter with massless version of parent for ibranch 2
     if (ibranch==2) {
       Momentum* kab = new Momentum(emitter->stored_E()*(*emitter) + emission->stored_E()*(*emission));
@@ -440,9 +443,9 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
 					  emission->stored_E()*(*emission), *spec_right);
       w -= 1.; // remove SO limit
     }
-    w += double_emsn_antenna_strongly_ordered_no_independent(*spec_left, (emitter->stored_E())*(*emitter),
-	        (emission->stored_E())*(*emission), *spec_right)
-	        /double_emsn_antenna_strongly_ordered(*spec_left, emitter->stored_E()*(*emitter),
+    if (!(lab_ordering_ && dip_ordering_)) w += double_emsn_antenna_strongly_ordered_no_independent(*spec_left, (emitter->stored_E())*(*emitter),
+	       (emission->stored_E())*(*emission), *spec_right)
+	       /double_emsn_antenna_strongly_ordered(*spec_left, emitter->stored_E()*(*emitter),
 	  		  emission->stored_E()*(*emission), *spec_right);
     // replace emitter with massless version of parent for ibranch 2
     if (ibranch==2) {
@@ -475,9 +478,6 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
   // now check if any emission is in the slice and fill the histogram accordingly
   double C1 = (((!NLL_EXPANDED) and NLL_evolution_) ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
   if (ibranch==1 or ibranch==3) {
-    //bool thetaIn_ka = obs_->in_region(emitter->stored_E()*(*emitter), &event_.axis());
-    //bool thetaIn_kb = obs_->in_region(emission->stored_E()*(*emission), &event_.axis());
-
     // both emissions ka and kb are inside the slice 
     if (thetaIn_ka and thetaIn_kb) {
       if (ibranch==1) {
@@ -487,9 +487,8 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
         reconstruct_parent(*spec_left, *spec_right, kab, tab);
         // sanity check: the following assert is only satisfied with Option 1 & 3 in reconstruct_parent
         // since otherwise the rapidity of the parent in the lab frame is slightly modified
-        assert(obs_->add_entries_in_region(kab.stored_E()*kab, tab,
-					ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis()));
-        return;
+        if (obs_->add_entries_in_region(kab.stored_E()*kab, tab,
+				     ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis())) return;
       } else {
         // ==> bin the emitter (much harder than the emission in LL kinematics)
 	      assert(obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
@@ -499,11 +498,9 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
     // only one of the two emissions ka and kb is inside the slice 
     } else if (thetaIn_ka or thetaIn_kb) {
       obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
-				  ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis());
-      //obs_->add_entries_in_region(emission->stored_E()*(*emission), t_insertion,
-			//	  ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis());
+      				  ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis());
       obs_->add_entries_in_region(emission->stored_E()*(*emission), t_second_insertion_,
-				  ln_kt(t_second_insertion_) - log(xQ_), C1*event_.weight, &event_.axis());
+      				  ln_kt(t_second_insertion_) - log(xQ_), C1*event_.weight, &event_.axis());
       return;
     }
 
@@ -511,7 +508,7 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
   } else if (ibranch==2 or ibranch==4) {
     if (ibranch==2) {
       if (obs_->add_entries_in_region(emitter->stored_E()*(*emitter), tab,
-				    ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis())) {
+     				    ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis())) {
         delete emitter; //clean up from the allocation above
         return;
       }
@@ -561,7 +558,7 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
   } else {
     assert(event_[idip].right_neighbour()>=0);
     //idip_insertion = (event_[event_[idip].right_neighbour()].delta_rap() != 0.0) ?
-    //  event_[idip].right_neighbour() : idip;
+    //event_[idip].right_neighbour() : idip;
     // Alternative: set weight to zero if selected dipole has no phase space for radiating
     if (event_[event_[idip].right_neighbour()].delta_rap() != 0.0) {
       idip_insertion = event_[idip].right_neighbour();
@@ -601,6 +598,7 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
     lnkt = rng.uniform_pos() * (1.0/(2.0*asmur_*b0) - (ln_kt(t_insertion) - ln_buffer)) + (ln_kt(t_insertion) - ln_buffer);
     // calculate weight
     double rho = 2.*asmur_*b0*lnkt;
+    //double rho = 2.*asmur_*b0*ln_kt(t_insertion); // scale of first insertion (NNLL difference)
     //double rho = 0; // fixed coupling (for fixed order tests)
     second_insertion_weight_  = (1.0/(2.0*asmur_*b0) - (ln_kt(t_insertion) - ln_buffer));
     second_insertion_weight_ *= 2. * CA * asmur_ / (2.0*M_PI) / (1.0 - rho) * event_[idip_insertion].delta_rap();
@@ -621,6 +619,11 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
   double ktb2 = 2./dot_product(event_[idip].left().momentum(),event_[rn].right().momentum())
       * dot_product(event_[idip].left().momentum(),insertion.stored_E()*insertion)
       * dot_product(insertion.stored_E()*insertion,event_[rn].right().momentum());
+  if (kta2 > ktb2) {
+    lab_ordering_ = true;
+  } else {
+    lab_ordering_ = false;
+  }
   if ((!dipole_kt_ordering) and (kta2 < ktb2)) {
     event_.bad = true;
     return Momentum();
@@ -629,6 +632,12 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
   t_second_insertion_ = tb; // define emission's time in the emitting dipole frame
   //t_second_insertion_ = t_scale(-0.5*log(ktb2)); // define emission's time in the parent dipole frame
   if (t_second_insertion_ != t_second_insertion_) t_second_insertion_ = EVOLCUT;
+  if (ln_kt(t_insertion) < ln_kt(t_second_insertion_)) {
+    dip_ordering_ = true;
+  } else {
+    dip_ordering_ = false;
+  }
+
   return insertion;
 }
 

@@ -2,7 +2,7 @@
 #include <sstream>
 
 unsigned long periodic_output_n_queries = 0;
-unsigned long periodic_output_frequency = 1000;
+unsigned long periodic_output_frequency = 1000000;
 
 bool periodic_output() {
   periodic_output_n_queries += 1;

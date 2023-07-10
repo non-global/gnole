@@ -32,8 +32,7 @@ double Event::reset_threejet_LL(double xmur, double xQ, double r1, double r2, do
   weight = eta_tot/(2.0*asmur*b0);
   weight *= 4 * CF * asmur / (2.0 * M_PI);
   // infrared regulator
-  double ascut=0.118;
-  if (lnkt > 1.0/(2.0*ascut*b0)-log(xQ0)) {
+  if ((lnkt > 1.0/(2.0*asmur*b0)-log(xQ0)) or (lnkt > 20.)) {
     weight = 0.;
     bad = true;
     return 0.;
@@ -136,8 +135,7 @@ double Event::reset_threejet(double xmur, double xQ, double r1, double r2, doubl
     return 0.0;
   }
   // infrared regulator
-  double ascut=0.118;
-  if (lnkt13 > 1.0/(2.0*ascut*b0)-log(xQ0)) {
+  if ((lnkt13 > 1.0/(2.0*asmur*b0)-log(xQ0)) or (lnkt13 > 20.)) {
     weight = 0.;
     bad = true;
     return 0.;
@@ -150,12 +148,18 @@ double Event::reset_threejet(double xmur, double xQ, double r1, double r2, doubl
     return 0.0;
   }
 
-  add(Dipole(DipoleEnd(p1, true),  DipoleEnd(p2, true), -1, -1));
-  eta_tot = dipoles_.back().delta_rap();
+  //add(Dipole(DipoleEnd(p1, true),  DipoleEnd(p2, true), -1, -1));
+  //eta_tot = dipoles_.back().delta_rap();
   // finally compute the thrust axis
   if ((p3.E() > p1.E()) and (p3.E() > p2.E()))      thrust_axis_=(1.0/p3.E())*p3;
   else if ((p2.E() > p1.E()) and (p2.E() > p3.E())) thrust_axis_=(1.0/p2.E())*p2;
   else                                              thrust_axis_=(1.0/p1.E())*p1;
+
+  p1 *= 1./p1.E();
+  p2 *= 1./p2.E();
+  add(Dipole(DipoleEnd(p1, true),  DipoleEnd(p2, true), -1, -1));
+  eta_tot = dipoles_.back().delta_rap();
+
   // normalise gluon momentum before dressing the event with soft radiation
   gluon.stored_E(gluon.E());
   gluon *= 1/gluon.E();
@@ -235,8 +239,7 @@ double Event::reset_threejet_soft(double xmur, double xQ, double r1, double r2, 
     return 0.0;
   }
   // infrared regulator
-  double ascut=0.118;
-  if (lnkt13 > 1.0/(2.0*ascut*b0)-log(xQ0)) {
+  if ((lnkt13 > 1.0/(2.0*asmur*b0)-log(xQ0)) or (lnkt13 > 20.)) {
     weight = 0.;
     bad = true;
     return 0.;
@@ -249,6 +252,8 @@ double Event::reset_threejet_soft(double xmur, double xQ, double r1, double r2, 
     return 0.0;
   }
 
+  p1 *= 1./p1.E();
+  p2 *= 1./p2.E();
   add(Dipole(DipoleEnd(p1, true),  DipoleEnd(p2, true), -1, -1));
   eta_tot = dipoles_.back().delta_rap();
   // finally compute the thrust axis
