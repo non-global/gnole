@@ -70,6 +70,8 @@ int main(int argc, char ** argv) {
 
   // output
   string filename  = cmdline.value<string>("-out","output.dat");
+  string header = "# "+cmdline.command_line()
+    +"\n# file created on: "+cmdline.time_stamp();
 #ifdef NNET
   string fn_evl_nn  = cmdline.value<string>("-evol","");
   Shower shower(slice, xmur, xQ, fn_evl_nn, order, header.str(), seed);
