@@ -54,6 +54,9 @@ int main(int argc, char ** argv) {
   bool nll_expanded = cmdline.present("-expand-nll");
   set_nll_expanded(nll_expanded);
 
+  bool hard_only = cmdline.present("-hard-only");
+  set_hard_only(hard_only);
+
   // check whether the observable should be computed in SL approximation
   bool sl_observable = cmdline.present("-sl-obs");
   set_sl_observable(sl_observable);

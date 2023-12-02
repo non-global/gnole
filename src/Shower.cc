@@ -20,12 +20,15 @@ void Shower::run(int nev, const std::string& fn) {
       if (!NLL_EXPANDED){
         // run the soft factor S2 with two-loop evolution convoluted with H2 at NLO
         evolve_insertion(tstart);
-        //NLL_evolution_ = true;
-        //evolve_scale(tstart);
       } else {
-        // run the soft factor S2 with one-loop evolution convoluted with H2 at NLO
-        // followed by the two loop corrections to S2 convoluted with H2 at LO
-        evolve_insertion_expanded(tstart);
+	if (HARD_ONLY) {
+	  NLL_evolution_ = true;
+	  evolve_scale(tstart);
+	} else {
+	  // run the soft factor S2 with one-loop evolution convoluted with H2 at NLO
+	  // followed by the two loop corrections to S2 convoluted with H2 at LO
+	  evolve_insertion_expanded(tstart);
+	}
       }
       // run the soft factor S3 with one-loop evolution convoluted with H3 at LO
       run_threejet(tstart, true);

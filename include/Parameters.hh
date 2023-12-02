@@ -41,6 +41,8 @@ extern double RAPMAX;
 extern double as;
 // flag to expand out NLL corrections
 extern bool NLL_EXPANDED;
+// flag to run only the hard contributions
+extern bool HARD_ONLY;
 // flag to compute observable in SL approximation
 extern bool SL_OBSERVABLE;
 
@@ -55,6 +57,9 @@ void set_alphas_at_Q(double alphas);
 
 // set NLL_EXPANDED flag
 void set_nll_expanded(bool nll_expanded);
+
+// set HARD_ONLY flag 
+void set_hard_only(bool hard_only);
 
 // compute observable in SL approximation
 void set_sl_observable(bool sl_observable);

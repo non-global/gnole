@@ -17,6 +17,9 @@ void set_alphas_at_Q(double alphas) {as = alphas;};
 bool NLL_EXPANDED = false;
 void set_nll_expanded(bool nll_expanded) {NLL_EXPANDED = nll_expanded;};
 
+bool HARD_ONLY = false;
+void set_hard_only(bool hard_only) {HARD_ONLY = hard_only;};
+
 // set SL_OBSERVABLE
 bool SL_OBSERVABLE = false;
 void set_sl_observable(bool sl_observable) {SL_OBSERVABLE = sl_observable;};
