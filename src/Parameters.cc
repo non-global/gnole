@@ -17,8 +17,13 @@ void set_alphas_at_Q(double alphas) {as = alphas;};
 bool NLL_EXPANDED = false;
 void set_nll_expanded(bool nll_expanded) {NLL_EXPANDED = nll_expanded;};
 
+// set HARD_ONLY flag
 bool HARD_ONLY = false;
 void set_hard_only(bool hard_only) {HARD_ONLY = hard_only;};
+
+// set MATCHING flag
+bool MATCHING = false;
+void set_matching(bool matching) {MATCHING = matching;};
 
 // set SL_OBSERVABLE
 bool SL_OBSERVABLE = false;

@@ -2,26 +2,32 @@
 #ifndef __MATRIX_ELEMENTS_HH__
 #define __MATRIX_ELEMENTS_HH__
 #include <gsl/gsl_sf_dilog.h>
+#include "Parameters.hh"
 
 /// integrated counterterm
 inline double integrated_counterterm(double delta_eta) {
   double c = (exp(delta_eta) - 1.0) / (exp(delta_eta) + 1.0);
   double li2OneMinusC2 = gsl_sf_dilog((1.0 - c)/2.0);
   double li2OnePlusC2  = gsl_sf_dilog((1.0 + c)/2.0);
-  double counter_term = (4*(57 - 7*M_PI*M_PI) - (3*(64*c - 64* c*c*c - 192*c*log(2.) - 64*c*c*c*log(2.) -
-	      8*log(1 - c) + 96*c*log(1 - c) - 144*c*c*log(1 - c) +
-        32*c*c*c*log(1 - c) + 24*c*c*c*c*log(1 - c) + 40*log(2.)*log(1 - c) -
-        80*c*c*log(2.)*log(1 - c) + 40*c*c*c*c*log(2.)*log(1 - c) -
-        3*log(256.)*log(1 - c) + 6*c*c*log(256.)*log(1 - c) -
-        3*c*c*c*c*log(256.)*log(1 - c) - 8*log(1 - c)*log(1 - c) + 16*c*c*log(1 - c)*log(1 - c) -
-        8*c*c*c*c*log(1 - c)*log(1 - c) + 8*log(1 + c) + 96*c*log(1 + c) +
-        144*c*c*log(1 + c) + 32*c*c*c*log(1 + c) - 24*c*c*c*c*log(1 + c) -
-        40*log(2.)*log(1 + c) + 80*c*c*log(2.)*log(1 + c) -
-        40*c*c*c*c*log(2.)*log(1 + c) + 3*log(256.)*log(1 + c) -
-        6*c*c*log(256.)*log(1 + c) + 3*c*c*c*c*log(256.)*log(1 + c) +
-        8*log(1 + c)*log(1 + c) - 16*c*c*log(1 + c)*log(1 + c) + 8*c*c*c*c*log(1 + c)*log(1 + c) +
-        16*(-1 + c*c)*(-1 + c*c)*li2OneMinusC2 -
-	      16*(-1 + c*c)*(-1 + c*c)*li2OnePlusC2))/((-1 + c*c)*(-1 + c*c)))/24.;
+  double counter_term;
+  if (!MATCHING) {
+    counter_term = (4*(57 - 7*M_PI*M_PI) - (3*(64*c - 64* c*c*c - 192*c*log(2.) - 64*c*c*c*log(2.) -
+      8*log(1 - c) + 96*c*log(1 - c) - 144*c*c*log(1 - c) +
+      32*c*c*c*log(1 - c) + 24*c*c*c*c*log(1 - c) + 40*log(2.)*log(1 - c) -
+      80*c*c*log(2.)*log(1 - c) + 40*c*c*c*c*log(2.)*log(1 - c) -
+      3*log(256.)*log(1 - c) + 6*c*c*log(256.)*log(1 - c) -
+      3*c*c*c*c*log(256.)*log(1 - c) - 8*log(1 - c)*log(1 - c) + 16*c*c*log(1 - c)*log(1 - c) -
+      8*c*c*c*c*log(1 - c)*log(1 - c) + 8*log(1 + c) + 96*c*log(1 + c) +
+      144*c*c*log(1 + c) + 32*c*c*c*log(1 + c) - 24*c*c*c*c*log(1 + c) -
+      40*log(2.)*log(1 + c) + 80*c*c*log(2.)*log(1 + c) -
+      40*c*c*c*c*log(2.)*log(1 + c) + 3*log(256.)*log(1 + c) -
+      6*c*c*log(256.)*log(1 + c) + 3*c*c*c*c*log(256.)*log(1 + c) +
+      8*log(1 + c)*log(1 + c) - 16*c*c*log(1 + c)*log(1 + c) + 8*c*c*c*c*log(1 + c)*log(1 + c) +
+      16*(-1 + c*c)*(-1 + c*c)*li2OneMinusC2 -
+      16*(-1 + c*c)*(-1 + c*c)*li2OnePlusC2))/((-1 + c*c)*(-1 + c*c)))/24.;
+  } else {
+    counter_term = 19./2. - 7./6.*M_PI*M_PI;
+  }
   return counter_term;
 }
 

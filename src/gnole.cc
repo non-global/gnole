@@ -54,12 +54,20 @@ int main(int argc, char ** argv) {
   bool nll_expanded = cmdline.present("-expand-nll");
   set_nll_expanded(nll_expanded);
 
+  // flag to run only the hard part of the calculation
   bool hard_only = cmdline.present("-hard-only");
   set_hard_only(hard_only);
+
+  // flag to perform NLO matching to QCD
+  bool matching = cmdline.present("-matching");
+  set_matching(matching);
 
   // check whether the observable should be computed in SL approximation
   bool sl_observable = cmdline.present("-sl-obs");
   set_sl_observable(sl_observable);
+
+  // sanity check
+  if (matching) assert((!sl_observable) && "Flag -sl-obs cannot be used when running with -matching");
 
   // observable
   double p = cmdline.value("-p",-1.0);

@@ -21,14 +21,14 @@ void Shower::run(int nev, const std::string& fn) {
         // run the soft factor S2 with two-loop evolution convoluted with H2 at NLO
         evolve_insertion(tstart);
       } else {
-	if (HARD_ONLY) {
-	  NLL_evolution_ = true;
-	  evolve_scale(tstart);
-	} else {
-	  // run the soft factor S2 with one-loop evolution convoluted with H2 at NLO
-	  // followed by the two loop corrections to S2 convoluted with H2 at LO
-	  evolve_insertion_expanded(tstart);
-	}
+        if (HARD_ONLY) {
+          NLL_evolution_ = true;
+          evolve_scale(tstart);
+        } else {
+          // run the soft factor S2 with one-loop evolution convoluted with H2 at NLO
+          // followed by the two loop corrections to S2 convoluted with H2 at LO
+          evolve_insertion_expanded(tstart);
+        }
       }
       // run the soft factor S3 with one-loop evolution convoluted with H3 at LO
       run_threejet(tstart, true);
@@ -50,7 +50,9 @@ void Shower::run_threejet(double tstart, bool soft, bool use_cached_variables) {
   event_.weight = w;
   // now veto configurations where gluon is in the slice as computed in 
   // the two jet limit within the integrated counterterm
-  if (obs_->in_region(gluon_, &event_.axis())) event_.bad=true;
+  if (!MATCHING) {
+    if (obs_->in_region(gluon_, &event_.axis())) event_.bad=true;
+  }
   evolve_scale(tstart);
 }
 
@@ -66,19 +68,44 @@ void Shower::reset(bool threejet, bool soft, bool use_cached_variables) {
     event_.reset_threejet_soft(xmur_, xQ_, rng.uniform(), rng.uniform(), rng.uniform(), gluon_);
     Shower::do_split(0,gluon_);
     if (std::abs(gluon_.rap()) > RAPMAX) event_.bad = true;
-    in_region = obs_->in_region(gluon_, &event_.axis());
-    if (in_region or event_.weight==0.0) event_.bad = true;
+    if (!MATCHING) {
+      in_region = obs_->in_region(gluon_, &event_.axis());
+      if (in_region or event_.weight==0.0) event_.bad = true;
+    } else if (!event_.bad) {
+      // fill histogram if a particle is in the slice
+      if (obs_->add_entries_in_region(gluon_.stored_E()*gluon_, 0., 0., -event_.weight, &event_.axis())) {
+        event_.bad = true; // setting this to avoid starting the evolution later
+      }
+      if (event_.weight==0.0) event_.bad = true;
+    }
   } else {
     bool in_region = false;
     event_.reset_threejet(xmur_, xQ_, rng.uniform(), rng.uniform(), rng.uniform(), gluon_, use_cached_variables);
     Shower::do_split(0,gluon_);
 
     // make sure we don't have any hard partons in the observed region, otherwise set weight to 0
-    in_region = obs_->in_region(event_[0].left().momentum(), &event_.axis());
-    in_region = in_region || (obs_->in_region(event_[0].right().momentum(), &event_.axis()));
-    in_region = in_region || (obs_->in_region(event_[1].right().momentum(), &event_.axis()));
+    if (!MATCHING) {
+      in_region = obs_->in_region(event_[0].left().momentum(), &event_.axis());
+      in_region = in_region || (obs_->in_region(event_[0].right().momentum(), &event_.axis()));
+      in_region = in_region || (obs_->in_region(event_[1].right().momentum(), &event_.axis()));
 
-    if (in_region or event_.weight==0.0) event_.bad = true;
+      if (in_region or event_.weight==0.0) event_.bad = true;
+    } else if (!event_.bad) {
+      // fill histogram if a particle is in the slice
+      if (obs_->add_entries_in_region(event_[0].left().momentum().stored_E()*event_[0].left().momentum(), 
+          0., 0., event_.weight, &event_.axis())) {
+        event_.bad = true; // setting this to avoid starting the evolution later
+      }
+      if (obs_->add_entries_in_region(event_[0].right().momentum().stored_E()*event_[0].right().momentum(), 
+          0., 0., event_.weight, &event_.axis())) {
+        event_.bad = true; // setting this to avoid starting the evolution later
+      }
+      if (obs_->add_entries_in_region(event_[1].right().momentum().stored_E()*event_[1].right().momentum(), 
+          0., 0., event_.weight, &event_.axis())) {
+        event_.bad = true; // setting this to avoid starting the evolution later
+      }
+      if (event_.weight==0.0) event_.bad = true;
+    }
   }
   return;
 }
