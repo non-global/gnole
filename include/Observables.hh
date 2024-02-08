@@ -23,51 +23,40 @@ public:
   bool add_entries_in_region(const Momentum & emsn, double t, double lnkt,
 			     double weight = 1.0,
 			     const Momentum* thrust_axis = 0) {
-    if (this->in_region(emsn, thrust_axis)) {
-      dSdt_.add_entry(t, weight);
-      // dSdlnkt_.add_entry(lnkt, weight);
-      // dSdlnE_. add_entry(-log(emsn.E()), weight);
+    double ET = transverse_energy(emsn, lnkt, thrust_axis);
+    return add_entries(ET, t, weight);    
+  }
 
-      double ET2;
-      if (SL_OBSERVABLE) {
-        ET2 = exp(-2.*lnkt); // LL approximation for the observable
-      } else {
-        if (thrust_axis) {
-	        //double costh = dot3(emsn, *thrust_axis)/emsn.E();
-	        //ET2 = emsn.E() * emsn.E() * (1.0 - costh*costh);
-	        ET2 = cross(emsn, *thrust_axis, true).E();
-	        ET2 *= ET2;
-        } else ET2 = emsn.px()*emsn.px() + emsn.py()*emsn.py();
-      }
-      dSdlnET_. add_entry(-Ltilde(sqrt(ET2)), weight);
-      dSdlambda_. add_entry(-as*Ltilde(sqrt(ET2)), weight);
-      // consistency test: calculate the observable (soft) correction as 
-      // as*dS/dlambda*ln(1/sqrt(f2)) 
-      // Comment call to dSdlambda_.add_entry above and increase the binning of dSdlambda_
-      // This gives the pure NLL correction
-      //if (SL_OBSERVABLE) {
-      //  Momentum p1(0., 0., 1., 1.);
-      //  Momentum p2(0., 0., -1., 1.);
-      //  double f2= 2.*dot_product(emsn, p1)*dot_product(emsn, p2)/dot_product(p1, p2)
-      //          /exp(-2.*lnkt);
-      //  dSdlambda_. add_entry(-as*Ltilde(sqrt(ET2)), - weight * log(f2) * 0.5);
-      //  // compare to expression for one-loop soft function by Becher et al.
-      //  //dSdlambda_. add_entry(-as*Ltilde(sqrt(ET2)), - weight * log(f2/4./pow(sin(emsn.stored_phi_dip()),2)) * 0.5);
-      //}
+  /// add entries to the histograms 
+  bool add_entries(const double obs, double t, double weight = 1.0) {
+    if (obs != 0.) {
+      dSdt_.add_entry(t, weight);
+      dSdlnET_. add_entry(-Ltilde(obs), weight);
+      dSdlambda_. add_entry(-as*Ltilde(obs), weight);
       return true;
     }
     return false;
   }
 
-  // /// add entries to the histograms 
-  // bool add_entries(const Momentum & emsn, double t, double lnkt,
-  // 		   double weight = 1.0, Momentum* thrust_axis = 0) {
-  //   dSdt_.   add_entry(t, weight);
-  //   dSdlnkt_.add_entry(lnkt, weight);
-  //   dSdlnE_. add_entry(log(emsn.E()), weight);
-  //   return true;
-  // }
-
+  /// compute observable
+  double transverse_energy(const Momentum & emsn, double lnkt,
+			     const Momentum* thrust_axis = 0) {
+    double ET2 = 0.;
+    if (this->in_region(emsn, thrust_axis)) {
+     if (SL_OBSERVABLE) {
+       ET2 = exp(-2.*lnkt); // LL approximation for the observable
+     } else {
+       if (thrust_axis) {
+ 	      //double costh = dot3(emsn, *thrust_axis)/emsn.E();
+ 	      //ET2 = emsn.E() * emsn.E() * (1.0 - costh*costh);
+ 	      ET2 = cross(emsn, *thrust_axis, true).E();
+ 	      ET2 *= ET2;
+       } else ET2 = emsn.px()*emsn.px() + emsn.py()*emsn.py();
+     }
+    }
+    return sqrt(ET2);
+  }
+  
   /// write the histograms to file or cout with proper normalisation
   void write(int nev, std::ostream * ostr = (&std::cout)) {
     *ostr << "# dSdt (differential)" << std::endl;

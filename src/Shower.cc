@@ -91,19 +91,13 @@ void Shower::reset(bool threejet, bool soft, bool use_cached_variables) {
 
       if (in_region or event_.weight==0.0) event_.bad = true;
     } else if (!event_.bad) {
-      // fill histogram if a particle is in the slice
-      if (obs_->add_entries_in_region(event_[0].left().momentum().stored_E()*event_[0].left().momentum(), 
-          0., 0., event_.weight, &event_.axis())) {
-        event_.bad = true; // setting this to avoid starting the evolution later
-      }
-      if (obs_->add_entries_in_region(event_[0].right().momentum().stored_E()*event_[0].right().momentum(), 
-          0., 0., event_.weight, &event_.axis())) {
-        event_.bad = true; // setting this to avoid starting the evolution later
-      }
-      if (obs_->add_entries_in_region(event_[1].right().momentum().stored_E()*event_[1].right().momentum(), 
-          0., 0., event_.weight, &event_.axis())) {
-        event_.bad = true; // setting this to avoid starting the evolution later
-      }
+      // fill histogram if a particle is in the slice (additive observables)
+      double observable;
+      observable  = obs_->transverse_energy(event_[0].left() .momentum().stored_E()*event_[0].left() .momentum(), 0., &event_.axis());
+      observable += obs_->transverse_energy(event_[0].right().momentum().stored_E()*event_[0].right().momentum(), 0., &event_.axis());
+      observable += obs_->transverse_energy(event_[1].right().momentum().stored_E()*event_[1].right().momentum(), 0., &event_.axis());
+
+      if (obs_->add_entries(observable, 0., event_.weight)) {event_.bad = true;}
       if (event_.weight==0.0) event_.bad = true;
     }
   }
