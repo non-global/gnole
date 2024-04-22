@@ -112,20 +112,50 @@ inline double double_emsn_antenna_strongly_ordered_no_independent(const Momentum
 /// full double emission antenna
 inline double double_emsn_antenna(const Momentum& a, const Momentum& b,
 				  const Momentum& c, const Momentum& d) {
+  // eq. (8.3) of 0505111
   // A(a,b,c,d) = (D-2)/(b c)^2 * (1 - (a b)/(a b+c) - (c d)/(b+c d))^2
   //             + 2 (a d)^2/((a b)(c d)(a b+c)(b+c d))
   //             + 2 (a d)/(b c) * (1/((a b)(b+c d)) + 1/((a b)(c d))
   //                       + 1/((a b+c)(c d)) - 4/((a b+c)(b+c d)))
+  //
+  // A(a,b,c,d) = (D-2)/(bc)^2 * (1 - (ab)/(abc) - (cd)/(bcd))^2
+  //             + 2 (ad)^2/((ab)(cd)(abc)(bcd))
+  //             + 2 (ad)/(bc) * (1/((ab)(bcd)) + 1/((ab)(cd))
+  //                       + 1/((abc)(cd)) - 4/((abc)(bcd)))
   double ab=dot_product(a,b);
   double ac=dot_product(a,c);
   double ad=dot_product(a,d);
   double bc=dot_product(b,c);
   double bd=dot_product(b,d);
   double cd=dot_product(c,d);
-  double res = (1 - ab/(ab+ac) - cd/(bd+cd));
-  res*=res*2/(bc*bc);
-  res+=2*ad*ad/(ab*cd*(ab+ac)*(bd+cd));
-  res+=(2*ad/bc)*(1/(ab*(bd+cd)) + 1/(ab*cd) + 1/((ab+ac)*cd) - 4/((ab+ac)*(bd+cd)));
+  double abc = ab + ac + bc;
+  double bcd = bc + bd + cd;
+  //double res = (1 - ab/(ab+ac) - cd/(bd+cd));
+  //res*=res*2/(bc*bc);
+  //res+=2*ad*ad/(ab*cd*(ab+ac)*(bd+cd));
+  //res+=(2*ad/bc)*(1/(ab*(bd+cd)) + 1/(ab*cd) + 1/((ab+ac)*cd) - 4/((ab+ac)*(bd+cd)));
+  double res = 2/pow(bc,2) * pow(1 - ab/abc - cd/bcd,2)
+             + 2 * pow(ad,2)/(ab*cd*abc*bcd)
+             + 2 * ad/bc * (1/(ab*bcd) + 1/(ab*cd) + 1/(abc*cd) - 4/(abc*bcd));
+  return res;
+}
+
+/// full double emission antenna (fermion pair)
+inline double double_emsn_antenna_fermion(const Momentum& a, const Momentum& b,
+				  const Momentum& c, const Momentum& d) {
+  // eq. (8.4) of 0505111
+  // A(a,b,c,d) = 2/((cd)^2*((ac) + (ad))*((bc) + (bd)))
+  //            * ((ab)*(cd) - (ac)*(bd) - (bc)*(ad))
+  //            + 2/(cd)^2*((ac)*(ad)/((ac) + (ad))^2 + (bc)*(bd)/((bc) + (bd))^2)
+  double ab=dot_product(a,b);
+  double ac=dot_product(a,c);
+  double ad=dot_product(a,d);
+  double bc=dot_product(b,c);
+  double bd=dot_product(b,d);
+  double cd=dot_product(c,d);
+  double res = 2/(pow(cd,2)*(ac + ad)*(bc + bd))
+             * (ab*cd - ac*bd - bc*ad)
+             + 2/pow(cd,2)*(ac*ad/pow(ac + ad,2) + bc*bd/pow(bc + bd,2));
   return res;
 }
 

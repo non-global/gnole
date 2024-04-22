@@ -116,7 +116,6 @@ int Shower::choose_emitter() const {
   return -1;
 }
 
-
 //----------------------------------------------------------------------
 /// split a dipole and insert the emission into the event
 /// The algorithm in this function was originally written by G. Salam
@@ -235,6 +234,18 @@ void Shower::evolve_insertion(double t) {
   // branch4 = Z^{(1)} evolution collinear counterterm with kta > ktb
   event_.weight = w;
   perform_branch_double_insertion(t_insertion, idipa, 4, ka);
+
+  if (NF > 0.) {
+    event_.retrieve(event_cache_);
+    event_.weight = w;
+    // branch1 (fermion) = Z^{(1)} evolution double real with kta > ktb'
+    perform_branch_double_insertion_fermion(t_insertion, idipa, 1, ka);
+    event_.retrieve(event_cache_);
+
+    // branch2 (fermion) = Z^{(1)} evolution collinear counterterm with kta > ktb'
+    event_.weight = w;
+    perform_branch_double_insertion_fermion(t_insertion, idipa, 2, ka);
+  }
   NLL_evolution_ = false;
 }
 
@@ -313,6 +324,16 @@ void Shower::evolve_insertion_expanded(double t) {
   
   // branch4 = Z^{(1)} evolution collinear counterterm with kta > ktb
   perform_branch_double_insertion(t_insertion, idipa, 4, ka);
+
+  if (NF > 0.) {
+    event_.retrieve(event_cache_);
+    // branch1 (fermion) = Z^{(1)} evolution double real with kta > ktb'
+    perform_branch_double_insertion_fermion(t_insertion, idipa, 1, ka);
+    event_.retrieve(event_cache_);
+
+    // branch2 (fermion) = Z^{(1)} evolution collinear counterterm with kta > ktb'
+    perform_branch_double_insertion_fermion(t_insertion, idipa, 2, ka);
+  }
   NLL_evolution_ = false;
 }
 
@@ -386,7 +407,7 @@ void Shower::perform_branch_single_insertion(double t_insertion,  int ibranch, c
 }
 
 //----------------------------------------------------------------------
-/// perform the Z1 evolution pieces
+/// perform the Z1 evolution pieces (gauge currents)
 void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int ibranch, const Momentum& ka) {
   int idipb = -1;
   Momentum kb;
@@ -541,6 +562,163 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
       if (obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
               ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis())) return;
     }
+  }
+
+  // now complete the evolution until the cutoff scale
+  evolve_scale(t_insertion, evol_cutoff_, !NLL_EXPANDED);
+  // equivalently (NNLL difference) one can start from the scale of the second insertion
+  //evolve_scale(t_second_insertion_, evol_cutoff_, !NLL_EXPANDED);
+}
+
+//----------------------------------------------------------------------
+/// perform the Z1 evolution pieces (fermion currents)
+void Shower::perform_branch_double_insertion_fermion(double t_insertion, int idipa, int ibranch, const Momentum& ka) {
+  int idipb = -1;
+  Momentum kb;
+
+  if (!(ibranch == 1 || ibranch == 2)) {
+    event_.bad = true;
+    return;
+  }
+  if (ibranch==1) {
+    kb = generate_second_insertion(t_insertion, idipa, idipb, (ibranch==3 or ibranch==4));
+    cache_second_insertion(kb, idipb, event_.bad);
+  } else {
+    retrieve_second_insertion(kb, idipb, event_.bad);
+  }
+
+  if (event_.bad) return;
+  // add in the weight of the second insertion
+  event_.weight*=2.0;
+  const Momentum* emitter = &ka;
+  const Momentum* spec_left;
+  const Momentum* spec_right;
+  const Momentum* emission = &kb;
+  double tab;
+  double w = 0.;
+  event_.weight *= second_insertion_weight_;
+
+  bool thetaIn_ka = obs_->in_region(emitter->stored_E()*(*emitter), &event_.axis());
+  bool thetaIn_kb = obs_->in_region(emission->stored_E()*(*emission), &event_.axis());
+  //if (ibranch==1 or ibranch==2) {
+  //  if (thetaIn_ka and thetaIn_kb) return;
+  //} else if (ibranch==3 or ibranch==4) {
+  //  if (thetaIn_ka) return;
+  //}
+  if (thetaIn_ka and thetaIn_kb) return;
+  //if (thetaIn_ka and (!thetaIn_kb)) return;
+  //if ((!thetaIn_ka) and thetaIn_kb) return;
+  //if ((!thetaIn_ka) and (!thetaIn_kb)) return;
+
+  if (idipb == idipa) { // emitter is to the right
+    // here (1a) emitted b and split into (1b) and (ba)
+    // with the index of (1a), idipa, now corresponding to
+    // the new index of (1b), idipb
+    // (1(b)a)(a2) : index of (1a) is idipb
+    spec_left = &event_[idipb].left().momentum();
+    spec_right = &event_[event_[idipb].right_neighbour()].right().momentum();
+    w = double_emsn_antenna_fermion(*spec_left, (emission->stored_E())*(*emission),
+			    (emitter->stored_E())*(*emitter), *spec_right)
+	        /double_emsn_antenna_strongly_ordered(*spec_left, emission->stored_E()*(*emission),
+					emitter->stored_E()*(*emitter), *spec_right);
+    w *= NF/CA; //>> adjust colour factors      
+    
+    // replace emitter with massless version of parent for ibranch 2
+    if (ibranch==2) {
+      Momentum* kab = new Momentum(emitter->stored_E()*(*emitter) + emission->stored_E()*(*emission));
+      *kab = (1.0/kab->E())*(*kab);
+      reconstruct_parent(*spec_left, *spec_right, *kab, tab);
+      emitter = kab;
+      // now updated the dipoles containing ka
+      event_.eta_tot -= event_[idipb].delta_rap() + event_[event_[idipb].right_neighbour()].delta_rap();
+      event_[idipb].right(DipoleEnd(*kab));
+      event_[event_[idipb].right_neighbour()].left(DipoleEnd(*kab));
+      event_.eta_tot += event_[idipb].delta_rap() + event_[event_[idipb].right_neighbour()].delta_rap();
+    }
+    // split the dipole into two for branches 1 and 3
+    if (ibranch==1) {
+      // split dipole without adding a new one
+      // >> emitter is to the right => ff dipole is at the end of the chain
+      event_.eta_tot -= event_[idipb].delta_rap() + event_[event_[idipb].right_neighbour()].delta_rap();
+      event_[idipb].right(DipoleEnd(*emission));
+      event_[event_[idipb].right_neighbour()].left(DipoleEnd(*emitter));
+      event_.eta_tot += event_[idipb].delta_rap() + event_[event_[idipb].right_neighbour()].delta_rap();
+    }
+
+  } else { // emitter is to the left
+    // here (a2), with index event[idipa].right_neighbour,
+    // emitted b, with the index of (ab) being idipb
+    // (1a)(a(b)2) : index of (a2) is idipb
+    spec_right = &event_[idipb].right().momentum();
+    spec_left = &event_[event_[idipb].left_neighbour()].left().momentum();
+    w = double_emsn_antenna_fermion(*spec_left, (emitter->stored_E())*(*emitter),
+			    (emission->stored_E())*(*emission), *spec_right)
+	        /double_emsn_antenna_strongly_ordered(*spec_left, emitter->stored_E()*(*emitter),
+					emission->stored_E()*(*emission), *spec_right);
+    w *= NF/CA; //>> adjust colour factors
+
+    // replace emitter with massless version of parent for ibranch 2
+    if (ibranch==2) {
+      Momentum* kab = new Momentum(emitter->stored_E()*(*emitter) + emission->stored_E()*(*emission));
+      *kab = (1.0/kab->E())*(*kab);
+      reconstruct_parent(*spec_left, *spec_right, *kab, tab);
+      emitter = kab;
+      // now updated the dipoles containing ka
+      event_.eta_tot -= event_[idipb].delta_rap() + event_[event_[idipb].left_neighbour()].delta_rap();
+      event_[idipb].left(DipoleEnd(*kab));
+      event_[event_[idipb].left_neighbour()].right(DipoleEnd(*kab));
+      event_.eta_tot += event_[idipb].delta_rap() + event_[event_[idipb].left_neighbour()].delta_rap();
+    }
+    // split the dipole into two for branches 1 and 3
+    if (ibranch==1) {
+      // split dipole without adding a new one
+      // >> emitter is to the left => ff dipole is at idipb
+      event_.eta_tot -= event_[idipb].delta_rap() + event_[event_[idipb].left_neighbour()].delta_rap();
+      event_[idipb].left(DipoleEnd(*emission));
+      event_[event_[idipb].left_neighbour()].right(DipoleEnd(*emitter));
+      event_.eta_tot += event_[idipb].delta_rap() + event_[event_[idipb].left_neighbour()].delta_rap();
+      // no need to update spec_right with the new dipole indices 
+      // since no new dipole was created
+    }
+  }
+
+  // flip the sign of the weight for branches 2 and 3
+  event_.weight *= ((ibranch==1) ? w : -w);
+  if (event_.weight != event_.weight) {
+    event_.bad = true;
+    return;
+  }
+
+  // now check if any emission is in the slice and fill the histogram accordingly
+  double C1 = (((!NLL_EXPANDED) and NLL_evolution_) ?  1.0 + asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1) : 1.0);
+  if (ibranch==1) {
+    // both emissions ka and kb are inside the slice 
+    if (thetaIn_ka and thetaIn_kb) {
+      // ==> bin the parent (defined in the massless scheme @ NLL)
+      Momentum kab = emitter->stored_E()*(*emitter) + emission->stored_E()*(*emission);
+      kab = (1.0/kab.E())*kab;
+      reconstruct_parent(*spec_left, *spec_right, kab, tab);
+      // sanity check: the following assert is only satisfied with Option 1 & 3 in reconstruct_parent
+      // since otherwise the rapidity of the parent in the lab frame is slightly modified
+      if (obs_->add_entries_in_region(kab.stored_E()*kab, tab,
+			     ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis())) return;
+    // only one of the two emissions ka and kb is inside the slice 
+    } else if (thetaIn_ka or thetaIn_kb) {
+      obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
+      				  ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis());
+      obs_->add_entries_in_region(emission->stored_E()*(*emission), t_second_insertion_,
+      				  ln_kt(t_second_insertion_) - log(xQ_), C1*event_.weight, &event_.axis());
+      return;
+    }
+
+  // in branches 2 and 4 bin the emitter  
+  } else if (ibranch==2) {
+    if (obs_->add_entries_in_region(emitter->stored_E()*(*emitter), tab,
+    			    ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis())) {
+      delete emitter; //clean up from the allocation above
+      return;
+    }
+    delete emitter;
   }
 
   // now complete the evolution until the cutoff scale
