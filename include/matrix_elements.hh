@@ -128,8 +128,8 @@ inline double double_emsn_antenna(const Momentum& a, const Momentum& b,
   double bc=dot_product(b,c);
   double bd=dot_product(b,d);
   double cd=dot_product(c,d);
-  double abc = ab + ac + bc;
-  double bcd = bc + bd + cd;
+  double abc = ab + ac; //+ bc; //>> (bc) is subleading
+  double bcd = bd + cd; //+ bc; //>> (bc) is subleading
   //double res = (1 - ab/(ab+ac) - cd/(bd+cd));
   //res*=res*2/(bc*bc);
   //res+=2*ad*ad/(ab*cd*(ab+ac)*(bd+cd));
