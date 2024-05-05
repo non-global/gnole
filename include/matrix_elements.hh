@@ -112,7 +112,7 @@ inline double double_emsn_antenna_strongly_ordered_no_independent(const Momentum
 /// full double emission antenna
 inline double double_emsn_antenna(const Momentum& a, const Momentum& b,
 				  const Momentum& c, const Momentum& d) {
-  // eq. (8.3) of 0505111
+  // eq. (8.3) of 0505111 -> b and c are soft gluons
   // A(a,b,c,d) = (D-2)/(b c)^2 * (1 - (a b)/(a b+c) - (c d)/(b+c d))^2
   //             + 2 (a d)^2/((a b)(c d)(a b+c)(b+c d))
   //             + 2 (a d)/(b c) * (1/((a b)(b+c d)) + 1/((a b)(c d))
@@ -143,7 +143,8 @@ inline double double_emsn_antenna(const Momentum& a, const Momentum& b,
 /// full double emission antenna (fermion pair)
 inline double double_emsn_antenna_fermion(const Momentum& a, const Momentum& b,
 				  const Momentum& c, const Momentum& d) {
-  // eq. (8.4) of 0505111
+  // eq. (8.4) of 0505111 -> c (quark) and d (antiquark) are soft
+  // [corresponds exactly to Hq in eq. (2.5b) of 9707532]
   // A(a,b,c,d) = 2/((cd)^2*((ac) + (ad))*((bc) + (bd)))
   //            * ((ab)*(cd) - (ac)*(bd) - (bc)*(ad))
   //            + 2/(cd)^2*((ac)*(ad)/((ac) + (ad))^2 + (bc)*(bd)/((bc) + (bd))^2)

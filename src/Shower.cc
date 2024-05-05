@@ -580,6 +580,9 @@ void Shower::perform_branch_double_insertion_fermion(double t_insertion, int idi
     event_.bad = true;
     return;
   }
+  //>> identify the emission either with the quark (idipb == idipa) or
+  //>> with the antiquark (idipb != idipa). Since the squared
+  //>> amplitude is fully symmetric this is purely conventional
   if (ibranch==1) {
     kb = generate_second_insertion(t_insertion, idipa, idipb, (ibranch==3 or ibranch==4));
     cache_second_insertion(kb, idipb, event_.bad);
@@ -617,11 +620,15 @@ void Shower::perform_branch_double_insertion_fermion(double t_insertion, int idi
     // (1(b)a)(a2) : index of (1a) is idipb
     spec_left = &event_[idipb].left().momentum();
     spec_right = &event_[event_[idipb].right_neighbour()].right().momentum();
-    w = double_emsn_antenna_fermion(*spec_left, (emission->stored_E())*(*emission),
-			    (emitter->stored_E())*(*emitter), *spec_right)
+    w = double_emsn_antenna_fermion(*spec_left, *spec_right,
+          (emission->stored_E())*(*emission), (emitter->stored_E())*(*emitter))
 	        /double_emsn_antenna_strongly_ordered(*spec_left, emission->stored_E()*(*emission),
 					emitter->stored_E()*(*emitter), *spec_right);
-    w *= NF/CA; //>> adjust colour factors      
+    // to bring the normalisation of the NF term consistent with the SO CA term
+    // one needs to multiply the former by 2 (see eq. 2.4 of 9707532). 
+    // Since we are generating two identical NF contributions 
+    // (i.e. sum over two colour dipoles), we further need to multiply by 1/2.
+    w *= NF/CA;
     
     // replace emitter with massless version of parent for ibranch 2
     if (ibranch==2) {
@@ -651,11 +658,15 @@ void Shower::perform_branch_double_insertion_fermion(double t_insertion, int idi
     // (1a)(a(b)2) : index of (a2) is idipb
     spec_right = &event_[idipb].right().momentum();
     spec_left = &event_[event_[idipb].left_neighbour()].left().momentum();
-    w = double_emsn_antenna_fermion(*spec_left, (emitter->stored_E())*(*emitter),
-			    (emission->stored_E())*(*emission), *spec_right)
+    w = double_emsn_antenna_fermion(*spec_left, *spec_right,
+          (emitter->stored_E())*(*emitter), (emission->stored_E())*(*emission))
 	        /double_emsn_antenna_strongly_ordered(*spec_left, emitter->stored_E()*(*emitter),
 					emission->stored_E()*(*emission), *spec_right);
-    w *= NF/CA; //>> adjust colour factors
+    // to bring the normalisation of the NF term consistent with the SO CA term
+    // one needs to multiply the former by 2 (see eq. 2.4 of 9707532). 
+    // Since we are generating two identical NF contributions 
+    // (i.e. sum over two colour dipoles), we further need to multiply by 1/2.
+    w *= NF/CA;
 
     // replace emitter with massless version of parent for ibranch 2
     if (ibranch==2) {
