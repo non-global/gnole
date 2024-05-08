@@ -628,6 +628,7 @@ void Shower::perform_branch_double_insertion_fermion(double t_insertion, int idi
     // one needs to multiply the former by 2 (see eq. 2.4 of 9707532). 
     // Since we are generating two identical NF contributions 
     // (i.e. sum over two colour dipoles), we further need to multiply by 1/2.
+    if (isnan(w) || isinf(w)) w = 0.;
     w *= NF/CA;
     
     // replace emitter with massless version of parent for ibranch 2
@@ -666,6 +667,7 @@ void Shower::perform_branch_double_insertion_fermion(double t_insertion, int idi
     // one needs to multiply the former by 2 (see eq. 2.4 of 9707532). 
     // Since we are generating two identical NF contributions 
     // (i.e. sum over two colour dipoles), we further need to multiply by 1/2.
+    if (isnan(w) || isinf(w)) w = 0.;
     w *= NF/CA;
 
     // replace emitter with massless version of parent for ibranch 2
