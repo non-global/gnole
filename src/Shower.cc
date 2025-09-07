@@ -808,6 +808,10 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
     }
     lnkt = ln_kt(tb);
     second_insertion_weight_ = 1.;
+    // reweigh scale of coupling to that of first emission
+    double rho_second = 2.*asmur_*b0*lnkt;
+    double rho_first  = 2.*asmur_*b0*ln_kt(t_insertion);
+    second_insertion_weight_ *= (1. - rho_second)/(1. - rho_first);
   } else {
     // generate second insertion at fixed order (weighted)
     lnkt = rng.uniform_pos() * (1.0/(2.0*asmur_*b0) - (ln_kt(t_insertion) - ln_buffer)) + (ln_kt(t_insertion) - ln_buffer);
