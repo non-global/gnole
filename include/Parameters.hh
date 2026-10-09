@@ -43,6 +43,10 @@ extern double as;
 extern bool NLL_EXPANDED;
 // flag to run only the hard contributions
 extern bool HARD_ONLY;
+// flag to run only the single insertion contributions
+extern bool SINGLE_INSERTION_ONLY;
+// flag to run only the double insertion contributions
+extern bool DOUBLE_INSERTION_ONLY;
 // flag to match to NLO
 extern bool MATCHING;
 // flag to compute observable in SL approximation
@@ -62,6 +66,12 @@ void set_nll_expanded(bool nll_expanded);
 
 // set HARD_ONLY flag 
 void set_hard_only(bool hard_only);
+
+// set SINGLE_INSERTION_ONLY flag
+void set_single_insertion_only(bool single_insertion_only);
+
+// set DOUBLE_INSERTION_ONLY flag
+void set_double_insertion_only(bool double_insertion_only);
 
 // set MATCHING flag 
 void set_matching(bool matching);

@@ -25,14 +25,25 @@ void Shower::run(int nev, const std::string& fn) {
           NLL_evolution_ = true;
           evolve_scale(tstart);
         } else {
-          // run the soft factor S2 with one-loop evolution convoluted with H2 at NLO
-          // followed by the two loop corrections to S2 convoluted with H2 at LO
-          evolve_insertion_expanded(tstart);
+	  if (SINGLE_INSERTION_ONLY) {
+	    // run only corrections encoded in the single insertion
+	    evolve_single_insertion_corrections(tstart);
+	  } else if (DOUBLE_INSERTION_ONLY) {
+	    // run only corrections encoded in the double insertion
+	    evolve_double_insertion_corrections(tstart);
+	  } else {
+	    // run the soft factor S2 with one-loop evolution convoluted with H2 at NLO
+	    // followed by the two loop corrections to S2 convoluted with H2 at LO
+	    evolve_insertion_expanded(tstart);
+	  }
         }
       }
-      // run the soft factor S3 with one-loop evolution convoluted with H3 at LO
-      run_threejet(tstart, true);
-      run_threejet(tstart, false, true);
+
+      if ((!SINGLE_INSERTION_ONLY) && (!DOUBLE_INSERTION_ONLY)) {
+	// run the soft factor S3 with one-loop evolution convoluted with H3 at LO
+	run_threejet(tstart, true);
+	run_threejet(tstart, false, true);
+      }
     }
   }
   write(nev, fn);
@@ -288,6 +299,7 @@ void Shower::evolve_insertion_expanded(double t) {
   }
 
   // now handle extra NLL branches
+  // add jacobian to account for the sampling of one of the LL emissions
   if (insertion_is_part_of_NLL_ensemble) {
     event_.weight  = n*pow(r,n-1) * landau_pole_tolerance_*(1.0/(2.0*asmur_*b0) - log(xQ_)) / (ln_kt(t_insertion) - ln_kt(tlast_));
   } else {
@@ -339,6 +351,122 @@ void Shower::evolve_insertion_expanded(double t) {
 
 
 //----------------------------------------------------------------------
+/// singles out single insertion corrections as defined in perform_branch_single_insertion
+void Shower::evolve_single_insertion_corrections(double t) {
+  //if (event_.weight == 0.0 or event_.bad) return;
+  if (event_.bad) return;
+  NLL_evolution_ = false;
+
+  assert((NLL_EXPANDED && insertion_is_part_of_NLL_ensemble)
+	 && "Flag -double-insertion-only can be used only if NLL_EXPANDED=true and insertion_is_part_of_NLL_ensemble=true");
+
+  // generate log(Q/kt) in [log(xQ), 1/(2 as b0)]
+  // generate scale t from log(Q/kt)
+  double r = rng.uniform();
+  double n = 5.;
+  // introduce partition of unity to identify the scale of the insertion
+  double lnkt_insertion = log(xQ_) + pow(r,n)*landau_pole_tolerance_*(1.0/(2.0*asmur_*b0) - log(xQ_));
+  double t_insertion = t_scale(lnkt_insertion);
+
+  // evolve S2 at one loop kernel (without O(as) constants)
+  evolve_scale(t, std::min(t_insertion, evol_cutoff_), NLL_evolution_);
+  int idipa = -1;
+  if (t_insertion >= evol_cutoff_) {return;}
+
+  // generate the insertion
+  Momentum ka = generate_first_insertion(t_insertion, idipa);
+  if (event_.bad) {return;}
+
+  // now handle extra NLL branches
+  event_.weight  = n*pow(r,n-1) * landau_pole_tolerance_*(1.0/(2.0*asmur_*b0) - log(xQ_)) / (ln_kt(t_insertion) - ln_kt(tlast_));
+
+  // branch -2 = NLL virtual corrections to Z^{(0)}
+  event_cache_->copy(event_);
+  perform_branch_single_insertion(t_insertion, -2, ka);
+  event_.retrieve(event_cache_);
+
+  // split the dipole that emits ka
+  // branch -1 = NLL real corrections to Z^{(0)}
+  assert(do_split(idipa, ka));
+
+  // cache the event with the first insertion in;
+  // to be used later for the second insertion.
+  // Then evolve and retrieve the event before carrying on
+  event_cache_->copy(event_);
+  perform_branch_single_insertion(t_insertion, -1, ka);
+}
+
+
+//----------------------------------------------------------------------
+/// singles out double insertion corrections as defined in perform_branch_double_insertion
+void Shower::evolve_double_insertion_corrections(double t) {
+  //if (event_.weight == 0.0 or event_.bad) return;
+  if (event_.bad) return;
+  NLL_evolution_ = false;
+
+  assert((NLL_EXPANDED && insertion_is_part_of_NLL_ensemble)
+	 && "Flag -double-insertion-only can be used only if NLL_EXPANDED=true and insertion_is_part_of_NLL_ensemble=true");
+
+  // generate log(Q/kt) in [log(xQ), 1/(2 as b0)]
+  // generate scale t from log(Q/kt)
+  double r = rng.uniform();
+  double n = 5.;
+  // introduce partition of unity to identify the scale of the insertion
+  double lnkt_insertion = log(xQ_) + pow(r,n)*landau_pole_tolerance_*(1.0/(2.0*asmur_*b0) - log(xQ_));
+  double t_insertion = t_scale(lnkt_insertion);
+
+  // evolve S2 at one loop kernel (without O(as) constants)
+  evolve_scale(t, std::min(t_insertion, evol_cutoff_));
+  int idipa = -1;
+  if (t_insertion >= evol_cutoff_) {return;}
+
+  // generate the insertion
+  Momentum ka = generate_first_insertion(t_insertion, idipa);
+  if (event_.bad) {return;}
+
+  // weight associated with the first insertion
+  event_.weight  = n*pow(r,n-1) * landau_pole_tolerance_*(1.0/(2.0*asmur_*b0) - log(xQ_)) / (ln_kt(t_insertion) - ln_kt(tlast_));
+
+  // split the dipole that emits ka
+  assert(do_split(idipa, ka));
+  event_cache_->copy(event_);
+
+  // branch0 = Z^{(0)} evolution at LL
+  event_.weight = 1.;
+  perform_branch0(t_insertion, ka);
+
+  // gauge current contribution
+  event_.retrieve(event_cache_);
+
+  // branch1 = Z^{(1)} evolution double real with kta > ktb'
+  perform_branch_double_insertion(t_insertion, idipa, 1, ka);
+  event_.retrieve(event_cache_);
+
+  // branch2 = Z^{(1)} evolution collinear counterterm with kta > ktb'
+  perform_branch_double_insertion(t_insertion, idipa, 2, ka);
+  event_.retrieve(event_cache_);
+
+  // branch3 = Z^{(1)} evolution double real with kta > ktb
+  perform_branch_double_insertion(t_insertion, idipa, 3, ka);
+  event_.retrieve(event_cache_);
+
+  // branch4 = Z^{(1)} evolution collinear counterterm with kta > ktb
+  perform_branch_double_insertion(t_insertion, idipa, 4, ka);
+
+  // fermion current contribution
+  if (NF > 0.) {
+    event_.retrieve(event_cache_);
+    // branch1 (fermion) = Z^{(1)} evolution double real with kta > ktb'
+    perform_branch_double_insertion_fermion(t_insertion, idipa, 1, ka);
+    event_.retrieve(event_cache_);
+
+    // branch2 (fermion) = Z^{(1)} evolution collinear counterterm with kta > ktb'
+    perform_branch_double_insertion_fermion(t_insertion, idipa, 2, ka);
+  }
+}
+
+
+//----------------------------------------------------------------------
 /// perform the Z0 evolution
 void Shower::perform_branch0(double ta, const Momentum& ka) {
   if (event_.bad) return;
@@ -348,7 +476,8 @@ void Shower::perform_branch0(double ta, const Momentum& ka) {
     if (obs_->add_entries_in_region(ka.stored_E()*ka, ta, ln_kt(ta)-log(xQ_),
 		  		  C1*event_.weight, &event_.axis())) return;
   }
-  evolve_scale(ta, evol_cutoff_);
+  evolve_scale(ta, evol_cutoff_, NLL_evolution_);
+  return;
 }
 
 //----------------------------------------------------------------------
@@ -390,7 +519,9 @@ void Shower::perform_branch_single_insertion(double t_insertion,  int ibranch, c
     // Finally, include the H2 hard factor in the weight of the real to multiply
     // the sole LL contribution
     double w = - asmur_*(-(b0*KCMW) + 2.0*M_PI*b1*log(1.0 - rho))/(2.0*b0*M_PI*(1 - rho)) * event_.weight;
-    if (ibranch == -1) w += asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1);
+    if (!SINGLE_INSERTION_ONLY) {
+      if (ibranch == -1) w += asmur_/(2.0*M_PI) * (CF*integrated_counterterm_ + H1);
+    }
     // reset event weight
     event_.weight = (ibranch == -2 ? -w : 1. + w);
   }
@@ -431,12 +562,15 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
 
   bool thetaIn_ka = obs_->in_region(emitter->stored_E()*(*emitter), &event_.axis());
   bool thetaIn_kb = obs_->in_region(emission->stored_E()*(*emission), &event_.axis());
-  //if (ibranch==1 or ibranch==2) {
-  //  if (thetaIn_ka and thetaIn_kb) return;
-  //} else if (ibranch==3 or ibranch==4) {
-  //  if (thetaIn_ka) return;
-  //}
-  if (thetaIn_ka and thetaIn_kb) return;
+
+  // avoid calculating zeroes
+  if (ibranch==1 or ibranch==2) {
+    if (thetaIn_ka and thetaIn_kb) return;
+  } else if (ibranch==3 or ibranch==4) {
+    if (thetaIn_ka) return;
+  }
+  //if (thetaIn_ka and thetaIn_kb) return;
+  // select specific configurations
   //if (thetaIn_ka and (!thetaIn_kb)) return;
   //if ((!thetaIn_ka) and thetaIn_kb) return;
   //if ((!thetaIn_ka) and (!thetaIn_kb)) return;
@@ -455,10 +589,11 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
 					  emitter->stored_E()*(*emitter), *spec_right);
       w -= 1.; // remove SO limit
     }
-    if (!(lab_ordering_ && dip_ordering_)) w += double_emsn_antenna_strongly_ordered_no_independent(*spec_left, (emission->stored_E())*(*emission),
-		     (emitter->stored_E())*(*emitter), *spec_right)
-	       /double_emsn_antenna_strongly_ordered(*spec_left, emission->stored_E()*(*emission),
-			    emitter->stored_E()*(*emitter), *spec_right);
+
+    if (!(lab_ordering_ && dip_ordering_))
+      w += double_emsn_antenna_strongly_ordered(*spec_left, (emission->stored_E())*(*emission), (emitter->stored_E())*(*emitter), *spec_right)
+	/double_emsn_antenna_strongly_ordered(*spec_left, emission->stored_E()*(*emission), emitter->stored_E()*(*emitter), *spec_right);
+
     // replace emitter with massless version of parent for ibranch 2
     if (ibranch==2) {
       Momentum* kab = new Momentum(emitter->stored_E()*(*emitter) + emission->stored_E()*(*emission));
@@ -488,10 +623,11 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
 					  emission->stored_E()*(*emission), *spec_right);
       w -= 1.; // remove SO limit
     }
-    if (!(lab_ordering_ && dip_ordering_)) w += double_emsn_antenna_strongly_ordered_no_independent(*spec_left, (emitter->stored_E())*(*emitter),
-	       (emission->stored_E())*(*emission), *spec_right)
-	       /double_emsn_antenna_strongly_ordered(*spec_left, emitter->stored_E()*(*emitter),
-	  		  emission->stored_E()*(*emission), *spec_right);
+
+    if (!(lab_ordering_ && dip_ordering_))
+      w += double_emsn_antenna_strongly_ordered(*spec_left, (emitter->stored_E())*(*emitter), (emission->stored_E())*(*emission), *spec_right)
+	/double_emsn_antenna_strongly_ordered(*spec_left, emitter->stored_E()*(*emitter), emission->stored_E()*(*emission), *spec_right);
+
     // replace emitter with massless version of parent for ibranch 2
     if (ibranch==2) {
       Momentum* kab = new Momentum(emitter->stored_E()*(*emitter) + emission->stored_E()*(*emission));
@@ -515,7 +651,7 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
 
   // flip the sign of the weight for branches 2 and 3
   event_.weight *= ((ibranch==1 or ibranch==4) ? w : -w);
-  if (event_.weight != event_.weight) {
+  if (isnan(event_.weight) or isinf(event_.weight)) {
     event_.bad = true;
     return;
   }
@@ -532,35 +668,53 @@ void Shower::perform_branch_double_insertion(double t_insertion, int idipa, int 
         reconstruct_parent(*spec_left, *spec_right, kab, tab);
         // sanity check: the following assert is only satisfied with Option 1 & 3 in reconstruct_parent
         // since otherwise the rapidity of the parent in the lab frame is slightly modified
-        if (obs_->add_entries_in_region(kab.stored_E()*kab, tab,
-				     ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis())) return;
+	if (!NLL_EXPANDED) {
+	  if (obs_->add_entries_in_region(kab.stored_E()*kab, tab,
+					  ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis())) return;
+	} else {
+	  if (obs_->add_entries_in_region(kab.stored_E()*kab, t_insertion,
+					  ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis())) return;
+	}
       } else {
         // ==> bin the emitter (much harder than the emission in LL kinematics)
-	      assert(obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
-				  ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis()));
-	      return;
+	assert(obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
+					   ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis()));
+	return;
       }
     // only one of the two emissions ka and kb is inside the slice 
     } else if (thetaIn_ka or thetaIn_kb) {
       obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
       				  ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis());
-      obs_->add_entries_in_region(emission->stored_E()*(*emission), t_second_insertion_,
-      				  ln_kt(t_second_insertion_) - log(xQ_), C1*event_.weight, &event_.axis());
+      if (!NLL_EXPANDED) {
+	obs_->add_entries_in_region(emission->stored_E()*(*emission), t_second_insertion_,
+				    ln_kt(t_second_insertion_) - log(xQ_), C1*event_.weight, &event_.axis());
+      } else {
+	obs_->add_entries_in_region(emission->stored_E()*(*emission), t_insertion,
+				    ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis());
+      }
       return;
     }
 
   // in branches 2 and 4 bin the emitter  
   } else if (ibranch==2 or ibranch==4) {
     if (ibranch==2) {
-      if (obs_->add_entries_in_region(emitter->stored_E()*(*emitter), tab,
-     				    ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis())) {
-        delete emitter; //clean up from the allocation above
-        return;
+      if (!NLL_EXPANDED) {
+	if (obs_->add_entries_in_region(emitter->stored_E()*(*emitter), tab,
+					ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis())) {
+	  delete emitter; //clean up from the allocation above
+	  return;
+	}
+      } else {
+	if (obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
+					ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis())) {
+	  delete emitter; //clean up from the allocation above
+	  return;
+	}
       }
       delete emitter;
     } else {
       if (obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
-              ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis())) return;
+				      ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis())) return;
     }
   }
 
@@ -603,12 +757,15 @@ void Shower::perform_branch_double_insertion_fermion(double t_insertion, int idi
 
   bool thetaIn_ka = obs_->in_region(emitter->stored_E()*(*emitter), &event_.axis());
   bool thetaIn_kb = obs_->in_region(emission->stored_E()*(*emission), &event_.axis());
-  //if (ibranch==1 or ibranch==2) {
-  //  if (thetaIn_ka and thetaIn_kb) return;
-  //} else if (ibranch==3 or ibranch==4) {
-  //  if (thetaIn_ka) return;
-  //}
-  if (thetaIn_ka and thetaIn_kb) return;
+
+  // avoid calculating zeroes
+  if (ibranch==1 or ibranch==2) {
+    if (thetaIn_ka and thetaIn_kb) return;
+  } else if (ibranch==3 or ibranch==4) {
+    if (thetaIn_ka) return;
+  }
+  //if (thetaIn_ka and thetaIn_kb) return;
+  // select specific configurations
   //if (thetaIn_ka and (!thetaIn_kb)) return;
   //if ((!thetaIn_ka) and thetaIn_kb) return;
   //if ((!thetaIn_ka) and (!thetaIn_kb)) return;
@@ -697,7 +854,7 @@ void Shower::perform_branch_double_insertion_fermion(double t_insertion, int idi
 
   // flip the sign of the weight for branches 2 and 3
   event_.weight *= ((ibranch==1) ? w : -w);
-  if (event_.weight != event_.weight) {
+  if (isnan(event_.weight) or isinf(event_.weight)) {
     event_.bad = true;
     return;
   }
@@ -713,23 +870,41 @@ void Shower::perform_branch_double_insertion_fermion(double t_insertion, int idi
       reconstruct_parent(*spec_left, *spec_right, kab, tab);
       // sanity check: the following assert is only satisfied with Option 1 & 3 in reconstruct_parent
       // since otherwise the rapidity of the parent in the lab frame is slightly modified
-      if (obs_->add_entries_in_region(kab.stored_E()*kab, tab,
-			     ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis())) return;
+      if (!NLL_EXPANDED) {
+	if (obs_->add_entries_in_region(kab.stored_E()*kab, tab,
+					ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis())) return;
+      } else {
+	if (obs_->add_entries_in_region(kab.stored_E()*kab, t_insertion,
+					ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis())) return;
+      }
     // only one of the two emissions ka and kb is inside the slice 
     } else if (thetaIn_ka or thetaIn_kb) {
       obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
       				  ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis());
-      obs_->add_entries_in_region(emission->stored_E()*(*emission), t_second_insertion_,
-      				  ln_kt(t_second_insertion_) - log(xQ_), C1*event_.weight, &event_.axis());
+      if (!NLL_EXPANDED) {
+	obs_->add_entries_in_region(emission->stored_E()*(*emission), t_second_insertion_,
+				    ln_kt(t_second_insertion_) - log(xQ_), C1*event_.weight, &event_.axis());
+      } else {
+	obs_->add_entries_in_region(emission->stored_E()*(*emission), t_insertion,
+				    ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis());
+      }
       return;
     }
 
   // in branches 2 and 4 bin the emitter  
   } else if (ibranch==2) {
-    if (obs_->add_entries_in_region(emitter->stored_E()*(*emitter), tab,
-    			    ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis())) {
-      delete emitter; //clean up from the allocation above
-      return;
+    if (!NLL_EXPANDED) {
+      if (obs_->add_entries_in_region(emitter->stored_E()*(*emitter), tab,
+				      ln_kt(tab) - log(xQ_), C1*event_.weight, &event_.axis())) {
+	delete emitter; //clean up from the allocation above
+	return;
+      }
+    } else {
+      if (obs_->add_entries_in_region(emitter->stored_E()*(*emitter), t_insertion,
+				      ln_kt(t_insertion) - log(xQ_), C1*event_.weight, &event_.axis())) {
+	delete emitter; //clean up from the allocation above
+	return;
+      }
     }
     delete emitter;
   }
@@ -766,6 +941,10 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
     // Alternative: set weight to zero if selected dipole has no phase space for radiating
     if (event_[idip].delta_rap() != 0.0) {
       idip_insertion = idip;
+      // emitter in to the right - update its rapidity bounds
+      event_.eta_tot -= event_[idip_insertion].delta_rap();
+      event_[idip_insertion].reset(RAPMAX,-10.);
+      event_.eta_tot += event_[idip_insertion].delta_rap();
     } else {
       event_.bad = true;
       return Momentum();
@@ -777,6 +956,10 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
     // Alternative: set weight to zero if selected dipole has no phase space for radiating
     if (event_[event_[idip].right_neighbour()].delta_rap() != 0.0) {
       idip_insertion = event_[idip].right_neighbour();
+      // emitter in to the left - update its rapidity bounds
+      event_.eta_tot -= event_[idip_insertion].delta_rap();
+      event_[idip_insertion].reset(10.,-RAPMAX);
+      event_.eta_tot += event_[idip_insertion].delta_rap();
     } else {
       event_.bad = true;
       return Momentum();
@@ -794,7 +977,7 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
       / dot_product(insertion.stored_E()*insertion,event_[rn].right().momentum());
   double ln_buffer = 0.5*log(f2);
   double tb = t_scale(ln_kt(t_insertion) - ln_buffer);
-  
+
   // Cut events with a t above the starting scale t=0.
   // Moreover, the starting tb will be nan if 
   // ln_kt(t_insertion)-ln_buffer is above the landau pole
@@ -809,48 +992,58 @@ Momentum Shower::generate_second_insertion(double t_insertion, int idip, int& id
     lnkt = ln_kt(tb);
     second_insertion_weight_ = 1.;
     // reweigh scale of coupling to that of first emission
-    double rho_second = 2.*asmur_*b0*lnkt;
-    double rho_first  = 2.*asmur_*b0*ln_kt(t_insertion);
-    second_insertion_weight_ *= (1. - rho_second)/(1. - rho_first);
+    if (NLL_EXPANDED) {
+      double rho_second = 2.*asmur_*b0*lnkt;
+      double rho_first  = 2.*asmur_*b0*ln_kt(t_insertion);
+      second_insertion_weight_ *= (1. - rho_second)/(1. - rho_first);
+    }
   } else {
     // generate second insertion at fixed order (weighted)
     lnkt = rng.uniform_pos() * (1.0/(2.0*asmur_*b0) - (ln_kt(t_insertion) - ln_buffer)) + (ln_kt(t_insertion) - ln_buffer);
+
     // calculate weight
-    double rho = 2.*asmur_*b0*lnkt;
-    //double rho = 2.*asmur_*b0*ln_kt(t_insertion); // scale of first insertion (NNLL difference)
+    double rho;
+    if (!NLL_EXPANDED) {
+      rho = 2.*asmur_*b0*lnkt;
+    } else {
+      rho = 2.*asmur_*b0*ln_kt(t_insertion); // scale of first insertion (NNLL difference)
+    }
     //double rho = 0; // fixed coupling (for fixed order tests)
+
     second_insertion_weight_  = (1.0/(2.0*asmur_*b0) - (ln_kt(t_insertion) - ln_buffer));
     second_insertion_weight_ *= 2. * CA * asmur_ / (2.0*M_PI) / (1.0 - rho) * event_[idip_insertion].delta_rap();
     tb = t_scale(lnkt);
   }
+  // update emission's energy
+  insertion.stored_E(insertion.stored_E()*exp(-lnkt+log(xQ_)));
 
-  if (lnkt!=lnkt or (2.0*asmur_*b0*lnkt >= 1.0)
+  if (isnan(lnkt) or isinf(lnkt) or (2.0*asmur_*b0*lnkt >= 1.0)
       or (evl_grid_ and tb >= evl_grid_->xlim()) or (lnkt > lnktmax)) {
     event_.bad = true;
     return Momentum();
   }
-  // update emission's energy
-  insertion.stored_E(insertion.stored_E()*exp(-lnkt+log(xQ_)));
-  // sanity check: kt ordering in parent dipole frame
+
+  // check kt ordering in parent dipole frame
   double kta2 = 2./dot_product(event_[idip].left().momentum(),event_[rn].right().momentum())
       * dot_product(event_[idip].left().momentum(),emitter.stored_E() * emitter)
       * dot_product(emitter.stored_E() * emitter,event_[rn].right().momentum());
   double ktb2 = 2./dot_product(event_[idip].left().momentum(),event_[rn].right().momentum())
       * dot_product(event_[idip].left().momentum(),insertion.stored_E()*insertion)
       * dot_product(insertion.stored_E()*insertion,event_[rn].right().momentum());
+
   if (kta2 > ktb2) {
     lab_ordering_ = true;
   } else {
     lab_ordering_ = false;
   }
-  if ((!dipole_kt_ordering) and (kta2 < ktb2)) {
+
+  t_second_insertion_ = tb; // define emission's time in the emitting dipole frame
+  if (isnan(t_second_insertion_) or isinf(t_second_insertion_)) {
+    t_second_insertion_ = EVOLCUT;
     event_.bad = true;
     return Momentum();
   }
 
-  t_second_insertion_ = tb; // define emission's time in the emitting dipole frame
-  //t_second_insertion_ = t_scale(-0.5*log(ktb2)); // define emission's time in the parent dipole frame
-  if (t_second_insertion_ != t_second_insertion_) t_second_insertion_ = EVOLCUT;
   if (ln_kt(t_insertion) < ln_kt(t_second_insertion_)) {
     dip_ordering_ = true;
   } else {

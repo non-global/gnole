@@ -75,6 +75,12 @@ protected:
   /// evolve the shower including insertion (NLL fully expanded out)
   void evolve_insertion_expanded(double tstart);
 
+  /// singles out single insertion corrections (NLL fully expanded out)
+  void evolve_single_insertion_corrections(double tstart);
+
+  /// singles out double insertion corrections (NLL fully expanded out)
+  void evolve_double_insertion_corrections(double tstart);
+
   /// perform the Z^{(0)} evolution
   void perform_branch0(double ta, const Momentum& ka);
 
@@ -151,7 +157,7 @@ protected:
     idipb     = idip_cache_;
     event_bad = event_bad_cache_;
   }
-  bool   weighted_second_insertion = false; // if true the second insertion is generated at FO with a weight (instead of with a Sudakov)
+  bool   weighted_second_insertion = true; // if true the second insertion is generated at FO with a weight (instead of with a Sudakov)
   double second_insertion_weight_;
   
   /// cached information for insertion

@@ -103,7 +103,7 @@ inline double double_emsn_antenna_strongly_ordered_no_independent(const Momentum
 						   const Momentum& c, const Momentum& d) {
   // A(a,b,c,d) (c<<b) = A(a,b,d)A(b,c,d) = [2(a d)/((a b)(b d))] * [2(b d)/((b c) (c d))
   //                   = 4 (a d) / ((a b) (b c) (c d))
-  double eta = dipole_rapidity_difference(a, b, c, d);  
+  double eta = dipole_rapidity_difference(a, b, c, d);
   double f   = 1./(1.+exp(2.*eta));
   return 4*dot_product(a,d)/(dot_product(a,b)*dot_product(b,c)*dot_product(c,d))
      - f*4*dot_product(a,d)/(dot_product(a,b)*dot_product(b,d))*dot_product(a,d)/(dot_product(a,c)*dot_product(c,d));

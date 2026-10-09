@@ -58,6 +58,14 @@ int main(int argc, char ** argv) {
   bool hard_only = cmdline.present("-hard-only");
   set_hard_only(hard_only);
 
+  // flag to run only the single insertion part of the calculation
+  bool single_insertion_only = cmdline.present("-single-insertion-only");
+  set_single_insertion_only(single_insertion_only);
+
+  // flag to run only the double insertion part of the calculation
+  bool double_insertion_only = cmdline.present("-double-insertion-only");
+  set_double_insertion_only(double_insertion_only);
+
   // flag to perform NLO matching to QCD
   bool matching = cmdline.present("-matching");
   set_matching(matching);
@@ -67,7 +75,7 @@ int main(int argc, char ** argv) {
   set_sl_observable(sl_observable);
 
   // sanity check
-  if (matching) assert((!sl_observable) && "Flag -sl-obs cannot be used when running with -matching");
+  //if (matching) assert((!sl_observable) && "Flag -sl-obs cannot be used when running with -matching");
 
   // observable
   double p = cmdline.value("-p",-1.0);

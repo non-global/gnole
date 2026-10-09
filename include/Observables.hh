@@ -47,10 +47,10 @@ public:
        ET2 = exp(-2.*lnkt); // LL approximation for the observable
      } else {
        if (thrust_axis) {
- 	      //double costh = dot3(emsn, *thrust_axis)/emsn.E();
- 	      //ET2 = emsn.E() * emsn.E() * (1.0 - costh*costh);
- 	      ET2 = cross(emsn, *thrust_axis, true).E();
- 	      ET2 *= ET2;
+	 //double costh = dot3(emsn, *thrust_axis)/emsn.E();
+	 //ET2 = emsn.E() * emsn.E() * (1.0 - costh*costh);
+	 ET2 = cross(emsn, *thrust_axis, true).E();
+	 ET2 *= ET2;
        } else ET2 = emsn.px()*emsn.px() + emsn.py()*emsn.py();
      }
     }
