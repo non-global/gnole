@@ -2,26 +2,32 @@
 #ifndef __MATRIX_ELEMENTS_HH__
 #define __MATRIX_ELEMENTS_HH__
 #include <gsl/gsl_sf_dilog.h>
+#include "Parameters.hh"
 
 /// integrated counterterm
 inline double integrated_counterterm(double delta_eta) {
   double c = (exp(delta_eta) - 1.0) / (exp(delta_eta) + 1.0);
   double li2OneMinusC2 = gsl_sf_dilog((1.0 - c)/2.0);
   double li2OnePlusC2  = gsl_sf_dilog((1.0 + c)/2.0);
-  double counter_term = (4*(57 - 7*M_PI*M_PI) - (3*(64*c - 64* c*c*c - 192*c*log(2.) - 64*c*c*c*log(2.) -
-	      8*log(1 - c) + 96*c*log(1 - c) - 144*c*c*log(1 - c) +
-        32*c*c*c*log(1 - c) + 24*c*c*c*c*log(1 - c) + 40*log(2.)*log(1 - c) -
-        80*c*c*log(2.)*log(1 - c) + 40*c*c*c*c*log(2.)*log(1 - c) -
-        3*log(256.)*log(1 - c) + 6*c*c*log(256.)*log(1 - c) -
-        3*c*c*c*c*log(256.)*log(1 - c) - 8*log(1 - c)*log(1 - c) + 16*c*c*log(1 - c)*log(1 - c) -
-        8*c*c*c*c*log(1 - c)*log(1 - c) + 8*log(1 + c) + 96*c*log(1 + c) +
-        144*c*c*log(1 + c) + 32*c*c*c*log(1 + c) - 24*c*c*c*c*log(1 + c) -
-        40*log(2.)*log(1 + c) + 80*c*c*log(2.)*log(1 + c) -
-        40*c*c*c*c*log(2.)*log(1 + c) + 3*log(256.)*log(1 + c) -
-        6*c*c*log(256.)*log(1 + c) + 3*c*c*c*c*log(256.)*log(1 + c) +
-        8*log(1 + c)*log(1 + c) - 16*c*c*log(1 + c)*log(1 + c) + 8*c*c*c*c*log(1 + c)*log(1 + c) +
-        16*(-1 + c*c)*(-1 + c*c)*li2OneMinusC2 -
-	      16*(-1 + c*c)*(-1 + c*c)*li2OnePlusC2))/((-1 + c*c)*(-1 + c*c)))/24.;
+  double counter_term;
+  if (!MATCHING) {
+    counter_term = (4*(57 - 7*M_PI*M_PI) - (3*(64*c - 64* c*c*c - 192*c*log(2.) - 64*c*c*c*log(2.) -
+      8*log(1 - c) + 96*c*log(1 - c) - 144*c*c*log(1 - c) +
+      32*c*c*c*log(1 - c) + 24*c*c*c*c*log(1 - c) + 40*log(2.)*log(1 - c) -
+      80*c*c*log(2.)*log(1 - c) + 40*c*c*c*c*log(2.)*log(1 - c) -
+      3*log(256.)*log(1 - c) + 6*c*c*log(256.)*log(1 - c) -
+      3*c*c*c*c*log(256.)*log(1 - c) - 8*log(1 - c)*log(1 - c) + 16*c*c*log(1 - c)*log(1 - c) -
+      8*c*c*c*c*log(1 - c)*log(1 - c) + 8*log(1 + c) + 96*c*log(1 + c) +
+      144*c*c*log(1 + c) + 32*c*c*c*log(1 + c) - 24*c*c*c*c*log(1 + c) -
+      40*log(2.)*log(1 + c) + 80*c*c*log(2.)*log(1 + c) -
+      40*c*c*c*c*log(2.)*log(1 + c) + 3*log(256.)*log(1 + c) -
+      6*c*c*log(256.)*log(1 + c) + 3*c*c*c*c*log(256.)*log(1 + c) +
+      8*log(1 + c)*log(1 + c) - 16*c*c*log(1 + c)*log(1 + c) + 8*c*c*c*c*log(1 + c)*log(1 + c) +
+      16*(-1 + c*c)*(-1 + c*c)*li2OneMinusC2 -
+      16*(-1 + c*c)*(-1 + c*c)*li2OnePlusC2))/((-1 + c*c)*(-1 + c*c)))/24.;
+  } else {
+    counter_term = 19./2. - 7./6.*M_PI*M_PI;
+  }
   return counter_term;
 }
 
@@ -97,7 +103,7 @@ inline double double_emsn_antenna_strongly_ordered_no_independent(const Momentum
 						   const Momentum& c, const Momentum& d) {
   // A(a,b,c,d) (c<<b) = A(a,b,d)A(b,c,d) = [2(a d)/((a b)(b d))] * [2(b d)/((b c) (c d))
   //                   = 4 (a d) / ((a b) (b c) (c d))
-  double eta = dipole_rapidity_difference(a, b, c, d);  
+  double eta = dipole_rapidity_difference(a, b, c, d);
   double f   = 1./(1.+exp(2.*eta));
   return 4*dot_product(a,d)/(dot_product(a,b)*dot_product(b,c)*dot_product(c,d))
      - f*4*dot_product(a,d)/(dot_product(a,b)*dot_product(b,d))*dot_product(a,d)/(dot_product(a,c)*dot_product(c,d));
@@ -106,20 +112,51 @@ inline double double_emsn_antenna_strongly_ordered_no_independent(const Momentum
 /// full double emission antenna
 inline double double_emsn_antenna(const Momentum& a, const Momentum& b,
 				  const Momentum& c, const Momentum& d) {
+  // eq. (8.3) of 0505111 -> b and c are soft gluons
   // A(a,b,c,d) = (D-2)/(b c)^2 * (1 - (a b)/(a b+c) - (c d)/(b+c d))^2
   //             + 2 (a d)^2/((a b)(c d)(a b+c)(b+c d))
   //             + 2 (a d)/(b c) * (1/((a b)(b+c d)) + 1/((a b)(c d))
   //                       + 1/((a b+c)(c d)) - 4/((a b+c)(b+c d)))
+  //
+  // A(a,b,c,d) = (D-2)/(bc)^2 * (1 - (ab)/(abc) - (cd)/(bcd))^2
+  //             + 2 (ad)^2/((ab)(cd)(abc)(bcd))
+  //             + 2 (ad)/(bc) * (1/((ab)(bcd)) + 1/((ab)(cd))
+  //                       + 1/((abc)(cd)) - 4/((abc)(bcd)))
   double ab=dot_product(a,b);
   double ac=dot_product(a,c);
   double ad=dot_product(a,d);
   double bc=dot_product(b,c);
   double bd=dot_product(b,d);
   double cd=dot_product(c,d);
-  double res = (1 - ab/(ab+ac) - cd/(bd+cd));
-  res*=res*2/(bc*bc);
-  res+=2*ad*ad/(ab*cd*(ab+ac)*(bd+cd));
-  res+=(2*ad/bc)*(1/(ab*(bd+cd)) + 1/(ab*cd) + 1/((ab+ac)*cd) - 4/((ab+ac)*(bd+cd)));
+  double abc = ab + ac; //+ bc; //>> (bc) is subleading
+  double bcd = bd + cd; //+ bc; //>> (bc) is subleading
+  //double res = (1 - ab/(ab+ac) - cd/(bd+cd));
+  //res*=res*2/(bc*bc);
+  //res+=2*ad*ad/(ab*cd*(ab+ac)*(bd+cd));
+  //res+=(2*ad/bc)*(1/(ab*(bd+cd)) + 1/(ab*cd) + 1/((ab+ac)*cd) - 4/((ab+ac)*(bd+cd)));
+  double res = 2/pow(bc,2) * pow(1 - ab/abc - cd/bcd,2)
+             + 2 * pow(ad,2)/(ab*cd*abc*bcd)
+             + 2 * ad/bc * (1/(ab*bcd) + 1/(ab*cd) + 1/(abc*cd) - 4/(abc*bcd));
+  return res;
+}
+
+/// full double emission antenna (fermion pair)
+inline double double_emsn_antenna_fermion(const Momentum& a, const Momentum& b,
+				  const Momentum& c, const Momentum& d) {
+  // eq. (8.4) of 0505111 -> c (quark) and d (antiquark) are soft
+  // [corresponds exactly to Hq in eq. (2.5b) of 9707532]
+  // A(a,b,c,d) = 2/((cd)^2*((ac) + (ad))*((bc) + (bd)))
+  //            * ((ab)*(cd) - (ac)*(bd) - (bc)*(ad))
+  //            + 2/(cd)^2*((ac)*(ad)/((ac) + (ad))^2 + (bc)*(bd)/((bc) + (bd))^2)
+  double ab=dot_product(a,b);
+  double ac=dot_product(a,c);
+  double ad=dot_product(a,d);
+  double bc=dot_product(b,c);
+  double bd=dot_product(b,d);
+  double cd=dot_product(c,d);
+  double res = 2/(pow(cd,2)*(ac + ad)*(bc + bd))
+             * (ab*cd - ac*bd - bc*ad)
+             + 2/pow(cd,2)*(ac*ad/pow(ac + ad,2) + bc*bd/pow(bc + bd,2));
   return res;
 }
 

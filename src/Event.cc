@@ -155,6 +155,8 @@ double Event::reset_threejet(double xmur, double xQ, double r1, double r2, doubl
   else if ((p2.E() > p1.E()) and (p2.E() > p3.E())) thrust_axis_=(1.0/p2.E())*p2;
   else                                              thrust_axis_=(1.0/p1.E())*p1;
 
+  p1.stored_E(p1.E());
+  p2.stored_E(p2.E());
   p1 *= 1./p1.E();
   p2 *= 1./p2.E();
   add(Dipole(DipoleEnd(p1, true),  DipoleEnd(p2, true), -1, -1));
@@ -251,7 +253,9 @@ double Event::reset_threejet_soft(double xmur, double xQ, double r1, double r2, 
     bad = true;
     return 0.0;
   }
-
+  
+  p1.stored_E(p1.E());
+  p2.stored_E(p2.E());
   p1 *= 1./p1.E();
   p2 *= 1./p2.E();
   add(Dipole(DipoleEnd(p1, true),  DipoleEnd(p2, true), -1, -1));

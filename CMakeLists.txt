@@ -1,35 +1,17 @@
-cmake_minimum_required(VERSION 2.8.9)
-project(ngl)
-
+cmake_minimum_required(VERSION 3.10)
+project(gnole LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED YES)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin) 
-
-include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src)
-
-set(SOURCES
-	${PROJECT_SOURCE_DIR}/src/CmdLine.cc
-	${PROJECT_SOURCE_DIR}/src/Event.cc
-	${PROJECT_SOURCE_DIR}/src/Momentum.cc
-	${PROJECT_SOURCE_DIR}/src/Parameters.cc
-	${PROJECT_SOURCE_DIR}/src/Shower.cc
-	${PROJECT_SOURCE_DIR}/src/helpers.cc)
-file(GLOB HEADERS ${PROJECT_SOURCE_DIR}/include/*.hh)
-add_executable(gnole
-        ${PROJECT_SOURCE_DIR}/src/gnole.cc
-	${SOURCES} ${HEADERS})
-
-# just for example add some compiler flags
-add_definitions(-Wall -g -O2)
-
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(GSL REQUIRED)
-option(NNET "Use neural network implementation" OFF)
+add_executable(gnole src/gnole.cc src/Shower.cc src/Event.cc src/Momentum.cc
+                     src/Parameters.cc src/CmdLine.cc src/helpers.cc)
+target_include_directories(gnole PRIVATE include)
+target_link_libraries(gnole PRIVATE GSL::gsl GSL::gslcblas)
+set_target_properties(gnole PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
+option(NNET "Build the existing optional Torch evolution interface" OFF)
 if(NNET)
-find_package(Torch REQUIRED)
-target_link_libraries(gnole ${TORCH_LIBRARIES} GSL::gsl GSL::gslcblas)
-add_definitions(-DNNET)
-else()
-target_link_libraries(gnole GSL::gsl GSL::gslcblas)
-endif(NNET)
-unset(NNET)
- 
+  find_package(Torch REQUIRED)
+  target_compile_definitions(gnole PRIVATE NNET)
+  target_link_libraries(gnole PRIVATE "${TORCH_LIBRARIES}")
+  set_property(TARGET gnole APPEND_STRING PROPERTY COMPILE_FLAGS " ${TORCH_CXX_FLAGS}")
+endif()

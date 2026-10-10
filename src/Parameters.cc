@@ -17,6 +17,22 @@ void set_alphas_at_Q(double alphas) {as = alphas;};
 bool NLL_EXPANDED = false;
 void set_nll_expanded(bool nll_expanded) {NLL_EXPANDED = nll_expanded;};
 
+// set HARD_ONLY flag
+bool HARD_ONLY = false;
+void set_hard_only(bool hard_only) {HARD_ONLY = hard_only;};
+
+// set SINGLE_INSERTION_ONLY flag
+bool SINGLE_INSERTION_ONLY = false;
+void set_single_insertion_only(bool single_insertion_only) {SINGLE_INSERTION_ONLY = single_insertion_only;};
+
+// set DOUBLE_INSERTION_ONLY flag
+bool DOUBLE_INSERTION_ONLY = false;
+void set_double_insertion_only(bool double_insertion_only) {DOUBLE_INSERTION_ONLY = double_insertion_only;};
+
+// set MATCHING flag
+bool MATCHING = false;
+void set_matching(bool matching) {MATCHING = matching;};
+
 // set SL_OBSERVABLE
 bool SL_OBSERVABLE = false;
 void set_sl_observable(bool sl_observable) {SL_OBSERVABLE = sl_observable;};

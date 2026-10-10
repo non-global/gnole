@@ -149,16 +149,16 @@ public:
   /// return the right rapidity
   double rap_right() const {return rap_right_;}
 
-private:
-
   //----------------------------------------------------------------------
   /// set or reset the rapidity separation of the dipole and its
   /// invariant mass
   /// The algorithm in this function was originally written by G. Salam
-  void reset() {
+  void reset(double rap_left = RAPMAX,
+             double rap_right = -RAPMAX) {
     // We set the relative boundaries wrt to dipole ends for new emissions in the lab frame 
-    rap_left_  =  rapmax_;
-    rap_right_ = -rapmax_;
+    rap_left_  =  rap_left;
+    rap_right_ =  rap_right;
+
     Momentum sum = left_.momentum() + right_.momentum();
 
     // then we boost to the dipole frame and compute the rapidity
@@ -168,6 +168,8 @@ private:
     delta_rap_ = std::max(rap_left_ - rap_right_, 0.0);
     m2_        = sum.m2();
   }
+  
+private:
 
   /// left and right dipole ends
   DipoleEnd left_, right_;
@@ -175,8 +177,6 @@ private:
   int left_neighbour_, right_neighbour_;
   /// values of invariant mass and rapidities
   double m2_, rap_left_, rap_right_, delta_rap_;
-  /// maximum rapidity value
-  double rapmax_ = RAPMAX;
 };
 
 #endif // __DIPOLE_HH__
