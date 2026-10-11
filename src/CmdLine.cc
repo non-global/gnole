@@ -208,7 +208,10 @@ string CmdLine::string_val(const string & opt) const {
 // as above, but if opt is not present_and_set, return default
 string CmdLine::string_val(const string & opt, const string & defval) const {
   if (this->present_and_set(opt)) {return string_val(opt);} 
-  else {return defval;}
+  else {
+    if (present(opt) && !__help_requested) throw Error("Missing value for " + opt);
+    return defval;
+  }
 }
 
 // Return the integer value corresponding to the specified option;
@@ -219,7 +222,7 @@ int CmdLine::int_val(const string & opt) const {
   string optstring = string_val(opt);
   istringstream optstream(optstring);
   optstream >> result;
-  if (optstream.fail()) {
+  if (optstream.fail() || !(optstream >> std::ws).eof()) {
     ostringstream ostr;
     ostr << "could not convert option ("<<opt<<") value ("
 	 <<optstring<<") to int"<<endl; 
@@ -231,7 +234,10 @@ int CmdLine::int_val(const string & opt) const {
 // as above, but if opt is not present_and_set, return default
 int CmdLine::int_val(const string & opt, const int & defval) const {
   if (this->present_and_set(opt)) {return int_val(opt);} 
-  else {return defval;}
+  else {
+    if (present(opt) && !__help_requested) throw Error("Missing value for " + opt);
+    return defval;
+  }
 }
 
 
@@ -243,7 +249,7 @@ double CmdLine::double_val(const string & opt) const {
   string optstring = string_val(opt);
   istringstream optstream(optstring);
   optstream >> result;
-  if (optstream.fail()) {
+  if (optstream.fail() || !(optstream >> std::ws).eof()) {
     ostringstream ostr;
 
     ostr << "could not convert option ("<<opt<<") value ("
@@ -256,7 +262,10 @@ double CmdLine::double_val(const string & opt) const {
 // as above, but if opt is not present_and_set, return default
 double CmdLine::double_val(const string & opt, const double & defval) const {
   if (this->present_and_set(opt)) {return double_val(opt);} 
-  else {return defval;}
+  else {
+    if (present(opt) && !__help_requested) throw Error("Missing value for " + opt);
+    return defval;
+  }
 }
 
 

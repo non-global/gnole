@@ -2,10 +2,44 @@
 #ifndef __MATRIX_ELEMENTS_HH__
 #define __MATRIX_ELEMENTS_HH__
 #include <gsl/gsl_sf_dilog.h>
+#include "Momentum.hh"
 #include "Parameters.hh"
+
+/// Algebraically equivalent hard coefficient, conditioned for wide slices.
+/// q = exp(-delta_eta) avoids forming 1-tanh(delta_eta/2), whose square
+/// is the vanishing denominator in the original expression.
+inline double integrated_counterterm_stable(double delta_eta) {
+  const double q = std::exp(-delta_eta);
+  const double h = std::log1p(q);
+  double s;
+  if (q < 0.01) {
+    // (q-log1p(q))/q^2 = 1/2-q/3+q^2/4-... . Direct subtraction
+    // loses precision when q is small. This also supplies the q=0 limit.
+    s = 0.5;
+    double power = q;
+    for (int n = 3; n < 64; ++n) {
+      const double next = s + ((n % 2) ? -power/n : power/n);
+      if (next == s) break;
+      s = next;
+      power *= q;
+    }
+  } else {
+    s = (q-h)/(q*q);
+  }
+  const double h_over_q = (q == 0.0 ? 1.0 : h/q);
+  return 9.5 - 5.0*M_PI*M_PI/6.0 + delta_eta*delta_eta
+    + (3.0-2.0*q-2.0*q*q)*delta_eta - 2.0*s + 2.0*h_over_q
+    - 2.0*(q+q*q)*h + 2.0*q - 4.0*gsl_sf_dilog(q/(1.0+q))
+    - 2.0*h*h;
+}
 
 /// integrated counterterm
 inline double integrated_counterterm(double delta_eta) {
+  // Matching has a width-independent coefficient and retains its exact
+  // previous evaluation. The reference switch preserves the old kernel.
+  if (PRECISE_KERNELS)
+    return MATCHING ? 19.0/2.0-7.0/6.0*M_PI*M_PI
+                    : integrated_counterterm_stable(delta_eta);
   double c = (exp(delta_eta) - 1.0) / (exp(delta_eta) + 1.0);
   double li2OneMinusC2 = gsl_sf_dilog((1.0 - c)/2.0);
   double li2OnePlusC2  = gsl_sf_dilog((1.0 + c)/2.0);
@@ -98,6 +132,37 @@ inline double double_emsn_antenna_strongly_ordered(const Momentum& a, const Mome
   return 4*dot_product(a,d)/(dot_product(a,b)*dot_product(b,c)*dot_product(c,d));
 }
 
+/// SO(a,c,b,d)/SO(a,b,c,d), with the common large antenna cancelled.
+inline double double_emsn_antenna_strongly_ordered_swapped_ratio(
+    const Momentum& a, const Momentum& b, const Momentum& c, const Momentum& d) {
+  return (dot_product(a,b)/dot_product(a,c))
+    * (dot_product(c,d)/dot_product(b,d));
+}
+
+/// full/SO - 1 without subtracting two quantities close to unity.
+/// All invariants use the general Lorentz product: reconstructed massive
+/// parents must not silently be treated as null four-vectors.
+inline double double_emsn_antenna_residual(const Momentum& a, const Momentum& b,
+                                         const Momentum& c, const Momentum& d) {
+  const double ab = dot_product(a,b);
+  const double ac = dot_product(a,c);
+  const double ad = dot_product(a,d);
+  const double bc = dot_product(b,c);
+  const double bd = dot_product(b,d);
+  const double cd = dot_product(c,d);
+  const double abc = ab+ac;
+  const double bcd = bd+cd;
+  // 1-ab/abc-cd/bcd = (ac*bd-ab*cd)/(abc*bcd). Compensate
+  // the rounded second product with FMA when the numerator is small.
+  const double ab_cd = ab*cd;
+  const double numerator = std::fma(ac,bd,-ab_cd)
+    + std::fma(-ab,cd,ab_cd);
+  const double delta = numerator/(abc*bcd);
+  const double regular = 0.5*(ad/abc)*(bc/bcd) - 0.5*delta
+    - 2.0*(ab/abc)*(cd/bcd);
+  return std::fma(0.5*(ab/ad)*(cd/bc)*delta,delta,regular);
+}
+
 /// double emission antenna in strongly ordered limit without the independent emsn piece
 inline double double_emsn_antenna_strongly_ordered_no_independent(const Momentum& a, const Momentum& b,
 						   const Momentum& c, const Momentum& d) {
@@ -158,6 +223,28 @@ inline double double_emsn_antenna_fermion(const Momentum& a, const Momentum& b,
              * (ab*cd - ac*bd - bc*ad)
              + 2/pow(cd,2)*(ac*ad/pow(ac + ad,2) + bc*bd/pow(bc + bd,2));
   return res;
+}
+
+/// F(a,b,c,d)/SO(a,c,d,b), directly in dimensionless invariants.
+/// With u=ac/(ac+ad) and v=bc/(bc+bd), the cancellation in the
+/// original fermion antenna is u(1-u)+v(1-v)-u(1-v)-(1-u)v
+/// = -(u-v)^2. This avoids subtracting separately divergent antennas.
+inline double double_emsn_antenna_fermion_ratio(const Momentum& a, const Momentum& b,
+                                             const Momentum& c, const Momentum& d) {
+  const double ab = dot_product(a,b);
+  const double ac = dot_product(a,c);
+  const double ad = dot_product(a,d);
+  const double bc = dot_product(b,c);
+  const double bd = dot_product(b,d);
+  const double cd = dot_product(c,d);
+  const double ac_ad = ac+ad;
+  const double bc_bd = bc+bd;
+  const double ad_bc = ad*bc;
+  const double numerator = std::fma(ac,bd,-ad_bc)
+    + std::fma(-ad,bc,ad_bc);
+  const double delta = numerator/(ac_ad*bc_bd);
+  return std::fma(-0.5*(ac/ab)*(bd/cd)*delta,delta,
+                  0.5*(ac/ac_ad)*(bd/bc_bd));
 }
 
 /// double soft matrix element

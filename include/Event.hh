@@ -43,24 +43,17 @@ public:
   
   /// copy an event from a cached pointer
   void copy(const Event& event) {
-    weight = event.weight;
-    bad = event.bad;
-    eta_tot = event.eta_tot;
-    dipoles_.clear();
-    for(unsigned int i = 0; i<event.size(); ++i) {
-      dipoles_.push_back(event[i]);
-    }
+    *this = event;
   }
   
   /// retrieve an event from a cached pointer
   void retrieve(Event* cache) {
-    weight = cache->weight;
-    bad = cache->bad;
-    eta_tot = cache->eta_tot;
-    dipoles_.clear();
-    for(Dipole dip : cache->dipoles()) {
-      dipoles_.push_back(dip);
-    }
+    *this = *cache;
+  }
+
+  void cache_coupling(double coupling, bool enabled) {
+    cached_coupling_ = coupling;
+    coupling_cached_ = enabled;
   }
   
   /// event weight
@@ -85,6 +78,8 @@ public:
   double reset_threejet_soft(double xmur, double xq, double r1, double r2, double r3, Momentum& gluon);
 
 private:
+  double cached_coupling_ = 0.0;
+  bool coupling_cached_ = false;
   /// vector of dipoles
   std::vector<Dipole> dipoles_;
   
@@ -95,6 +90,6 @@ private:
   double xQ0 = 1.0;
 
   /// cache three-jet kinematics for local subtraction
-  double eta13_, lnkt13_, phi13_;
+  double eta13_ = 0.0, lnkt13_ = 0.0, phi13_ = 0.0;
 };
 #endif //__EVENT_HH__

@@ -90,8 +90,9 @@ public:
     double temp2 = -gluon_px * stht + gluon_pz * ctht;
     gluon_px = temp1;
     gluon_pz = temp2;
-    double cphi = lboost.pz()/mdls2;
-    double sphi = lboost.py()/mdls2;
+    // For an exactly x-aligned dipole the second rotation is arbitrary.
+    double cphi = mdls2 == 0.0 ? 1.0 : lboost.pz()/mdls2;
+    double sphi = mdls2 == 0.0 ? 0.0 : lboost.py()/mdls2;
     double temp3 =  gluon_py * cphi + gluon_pz * sphi;
     double temp4 = -gluon_py * sphi + gluon_pz * cphi;
     gluon_py = temp3;

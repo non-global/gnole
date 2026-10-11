@@ -358,7 +358,8 @@ template<class T> CmdLine::Result<T> CmdLine::value_prefix(const std::string & o
     std::string optstring = prefix+string_val(opt);
     std::istringstream optstream(optstring);
     optstream >> result;
-    if (optstream.fail()) _report_conversion_failure(opt, optstring);
+    if (optstream.fail() || !(optstream >> std::ws).eof())
+      _report_conversion_failure(opt, optstring);
   } else if (__help_requested) {
     result = value_for_missing_option<T>();
   } else {
@@ -410,6 +411,7 @@ template<class T> CmdLine::Result<T> CmdLine::value(const std::string & opt, con
     result.set_opthelp(opthelp);
     return result;
   } else {
+    if (present(opt) && !__help_requested) throw Error("Missing value for " + opt);
     return Result<T>(defval,opthelp);
   }
 }
@@ -417,7 +419,10 @@ template<class T> CmdLine::Result<T> CmdLine::value(const std::string & opt, con
 template<class T> CmdLine::Result<T> CmdLine::value(const std::string & opt, const T & defval, 
                                    const std::string & prefix) const {
   if (this->present_and_set(opt)) {return value_prefix<T>(opt, prefix);} 
-  else {return defval;}
+  else {
+    if (present(opt) && !__help_requested) throw Error("Missing value for " + opt);
+    return defval;
+  }
 }
 
 template<class T>

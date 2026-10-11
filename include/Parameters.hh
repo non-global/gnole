@@ -2,14 +2,6 @@
 #define __PARAMETERS_HH__
 #include <cmath>
 
-// number of points for grid, max value, and integrand calls
-#ifdef NNET
-#define NGRID  1000
-#define LNEVOLMAX 4
-#define LNEVOLMIN -8
-#endif
-#define NEVLGRID  1000
-
 // evolution cutoff
 #define EVOLCUT   1.0
 
@@ -30,8 +22,8 @@ static const double KCMW = CA*(67.0/18.0 - M_PI*M_PI/6.0) - TF*NF*10.0/9.0;
 static const double H1 = CF*(-8.0 + 7.0/6.0*M_PI*M_PI);
 
 // the following flag is for private use only.
-// it decides whether in the expanded (NLL_EXPANDED = true)
-// NLL corrections, it uses two extra branches in addition
+// it decides whether for the expanded NLL corrections
+// the algorithm uses two extra branches in addition
 // to the default algorithm, or just one
 static const bool insertion_is_part_of_NLL_ensemble = true;
 
@@ -39,8 +31,9 @@ static const bool insertion_is_part_of_NLL_ensemble = true;
 extern double lnktmax;
 extern double RAPMAX;
 extern double as;
-// flag to expand out NLL corrections
-extern bool NLL_EXPANDED;
+// Stable arithmetic and precision-aware observable/histogram paths.
+extern bool PRECISE_KERNELS;
+void set_precise_kernels(bool enabled);
 // flag to run only the hard contributions
 extern bool HARD_ONLY;
 // flag to run only the single insertion contributions
@@ -61,8 +54,9 @@ void set_rapmax(double etamax);
 // set alphas at Q (hard scale)  
 void set_alphas_at_Q(double alphas);
 
-// set NLL_EXPANDED flag
-void set_nll_expanded(bool nll_expanded);
+// Preserve the original analytic-grid endpoint veto as a scalar cutoff.
+// This is not an evolution kernel or an inverse interpolation table.
+double legacy_evolution_limit(double xmur, double xQ);
 
 // set HARD_ONLY flag 
 void set_hard_only(bool hard_only);

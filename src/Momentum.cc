@@ -1,4 +1,5 @@
 #include "Momentum.hh"
+#include "Parameters.hh"
 #include <cassert>
 
 
@@ -14,6 +15,12 @@ double Momentum::rap(const Momentum* thrust_axis) const  {
     } else {
       rap = -maxrap_;
     }
+  } else if (PRECISE_KERNELS && std::abs(dot) < 0.5*std::abs(E_)) {
+    // Near zero rapidity the quotient (E+dot)/(E-dot) rounds to one.
+    // Keep the endpoint calculation below: forming dot/E near |dot|=E
+    // could itself round to +/-1 before the true endpoint is reached.
+    const double projection = dot/E_;
+    rap = 0.5*(std::log1p(projection)-std::log1p(-projection));
   } else {
     rap = 0.5*log((E_ + dot)/(E_ - dot));
   }
@@ -200,7 +207,8 @@ Momentum cross(const Momentum & p1, const Momentum & p2, bool lightlike) {
 
   double E;
   if (lightlike) {
-    E = sqrt(px*px + py*py + pz*pz);
+    E = PRECISE_KERNELS ? std::hypot(std::hypot(px,py),pz)
+                       : sqrt(px*px + py*py + pz*pz);
   } else {
     E = 0.0;
   }
@@ -221,11 +229,11 @@ void twoPerp(const Momentum & dir1, const Momentum & dir2,
 
   // for now test for exact zero -- later we will have to be more sophisticated...
   if (perp1.px()*perp1.px()+perp1.py()*perp1.py() + perp1.pz()*perp1.pz() == 0.0) {
-    if (abs(dir1.px()) < abs(dir1.py()) && abs(dir1.px()) < abs(dir1.pz())) {
+    if (std::abs(dir1.px()) < std::abs(dir1.py()) && std::abs(dir1.px()) < std::abs(dir1.pz())) {
       // x is smallest direction, so use that as a starting point
       // for a cross product
       perp2 = cross(dir1, Momentum(1,0,0,0));
-    } else if (abs(dir1.py()) < abs(dir1.pz())) {
+    } else if (std::abs(dir1.py()) < std::abs(dir1.pz())) {
       perp2 = cross(dir1, Momentum(0,1,0,0));
     } else {
       perp2 = cross(dir1, Momentum(0,0,1,0));

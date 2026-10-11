@@ -107,6 +107,19 @@ inline double dot_product(const Momentum & a, const Momentum & b) {
   return a.E()*b.E() - a.px()*b.px() - a.py()*b.py() - a.pz()*b.pz();
 }
 
+/// Lorentz product for explicitly known, positive-energy null momenta.
+/// Use only when the physical inputs are massless. The general dot_product
+/// above is required for parent sums and other massive four-vectors.
+/// The squared directional difference resolves very small opening angles
+/// which would be lost by subtracting E_a E_b and p_a.p_b.
+inline double massless_dot_product(const Momentum & a, const Momentum & b) {
+  const double dx = a.px()/a.E()-b.px()/b.E();
+  const double dy = a.py()/a.E()-b.py()/b.E();
+  const double dz = a.pz()/a.E()-b.pz()/b.E();
+  const double separation2 = std::fma(dx,dx,std::fma(dy,dy,dz*dz));
+  return (0.5*a.E())*b.E()*separation2;
+}
+
 /// returns the dot product of a and b vector
 inline double dot3(const Momentum & a, const Momentum & b) {
   return a.px()*b.px() + a.py()*b.py() + a.pz()*b.pz();

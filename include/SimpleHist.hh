@@ -33,17 +33,28 @@
 #include<iostream>
 #include<cassert>
 #include<vector>
+#include<stdexcept>
+#include "Parameters.hh"
+
+// Neumaier summation preserves a small signed residual even when a later
+// opposite contribution cancels the leading sum (e.g. 1e16 + 1 - 1e16).
+inline void histogram_accumulate(double value, double &sum, double &correction,
+                                 bool precise) {
+  if (!precise) { sum += value; return; }
+  const double next = sum + value;
+  correction += std::abs(sum) >= std::abs(value)
+              ? (sum - next) + value : (value - next) + sum;
+  sum = next;
+}
 
 class SimpleHist {
 public:
-  SimpleHist() {};
+  SimpleHist() : _minv(0.), _maxv(0.), _dv(0.),
+                 _precise(PRECISE_KERNELS) { reset(); }
   SimpleHist(double minv, double maxv, int n): 
-    _minv(minv), _maxv(maxv), _dv((maxv-minv)/n), _weights(n+1) {
-    _weights = 0.0;
-    _weight_v = 0.0;
-    _weight_vsq = 0.0;
-    _have_total = false;
-    _n_entries = 0.0;
+    _minv(minv), _maxv(maxv), _dv((maxv-minv)/n), _weights(n+2),
+    _corrections(n+2), _view(n+2), _precise(PRECISE_KERNELS) {
+    reset();
   }
 
   SimpleHist(double minv, double maxv, unsigned int n) {
@@ -67,6 +78,9 @@ public:
   void declare(double minv, double maxv, unsigned int n) {
     _minv = minv; _maxv = maxv; _dv = (maxv-minv)/n; 
     _weights.resize(n+2); // two extra bins for the underflow and overflow
+    _corrections.resize(n+2);
+    _view.resize(n+2);
+    _precise = PRECISE_KERNELS;
     reset();
   }
 
@@ -74,8 +88,12 @@ public:
   /// modify the histogram bounds)
   void reset() {
     _weights = 0.0;
+    _corrections = 0.0;
+    _view = 0.0;
     _weight_v = 0.0;
     _weight_vsq = 0.0;
+    _weight_v_correction = 0.0;
+    _weight_vsq_correction = 0.0;
     _total_weight = 0.0;
     _have_total = false;
     _n_entries = 0.0;
@@ -87,24 +105,36 @@ public:
   unsigned int size() const {
     unsigned outflow_sz = _weights.size();
     assert(outflow_sz > 0); // help capture uninitialised histogram bugs
-    return outflow_sz-1;
+    return outflow_sz-2;
   }
   /// returns the size of the histogram plus outflow bin
   unsigned int outflow_size() const {return _weights.size();};
 
-  double & operator[](int i) {_have_total = false; return _weights[i];};
-  const double & operator[](int i) const {return _weights[i];};
+  double & operator[](int i) {
+    _have_total = false;
+    _weights[i] += _corrections[i];
+    _corrections[i] = 0.;
+    return _weights[i];
+  }
+  const double & operator[](int i) const {
+    if (!_precise) return _weights[i];
+    _view[i] = _weights[i] + _corrections[i];
+    return _view[i];
+  }
   
   /// handle underflow and overflow bins
   unsigned int underflow_bin() const {return size();}
   unsigned int overflow_bin()  const {return size()+1;}
-  double & underflow() {return _weights[underflow_bin()];}
-  double & overflow()  {return _weights[overflow_bin()];}
-  const double & underflow() const {return _weights[underflow_bin()];}
-  const double & overflow()  const {return _weights[overflow_bin()];}
+  double & underflow() {return (*this)[underflow_bin()];}
+  double & overflow()  {return (*this)[overflow_bin()];}
+  const double & underflow() const {return (*this)[underflow_bin()];}
+  const double & overflow()  const {return (*this)[overflow_bin()];}
 
   /// returns the outflow bin
-  double outflow() {return underflow() + overflow();};
+  double outflow() {
+    const SimpleHist &hist = *this;
+    return hist.underflow() + hist.overflow();
+  }
   //double & outflow() {return _weights[size()];};
   //const double & outflow() const {return _weights[size()];};
 
@@ -114,6 +144,8 @@ public:
   double binsize()     const {return _dv;};
 
   unsigned int bin(double v) const {
+    if (!std::isfinite(v))
+      throw std::invalid_argument("Nonfinite histogram coordinate");
     if (v >= _minv && v < _maxv) {
       int i = int((v-_minv)/_dv); 
       if (i >= 0) {
@@ -135,14 +167,19 @@ public:
 
   /// return the mean value of all events given to histogram
   /// including those that were outside the histogram edges
-  double mean() const {return _weight_v / total_weight();}
+  double mean() const {return (_weight_v + _weight_v_correction) / total_weight();}
 
   /// return the total weight in the histogram (inefficient)...
   double total_weight() const {
     if (!_have_total) {
       _total_weight = 0.0;
+      double correction = 0.;
       for (unsigned i = 0; i < _weights.size(); i++) {
-        _total_weight += _weights[i];}
+        histogram_accumulate(_weights[i], _total_weight, correction, _precise);
+        if (_precise)
+          histogram_accumulate(_corrections[i], _total_weight, correction, true);
+      }
+      _total_weight += correction;
       _have_total = true;
     }
     return _total_weight;
@@ -150,23 +187,49 @@ public:
 
   double n_entries() const {return _n_entries;}
 
+  /// Include the residual separately when summing bins into a cumulative
+  /// quantity, so an unresolved bin-level residual can survive cancellation.
+  void accumulate_bin_weight(unsigned int index, double norm, double &sum,
+                             double &correction) const {
+    // Keep this multiply/add in one full expression for the original
+    // compiler contraction policy in numerical-reference mode.
+    if (!_precise) { sum += _weights[index] * norm; return; }
+    histogram_accumulate(_weights[index] * norm, sum, correction, _precise);
+    if (_precise)
+      histogram_accumulate(_corrections[index] * norm, sum, correction, true);
+  }
+
   void add_entry(double v, double weight = 1.0) {
-    //if (v >= _minv && v < _maxv) {
-    //  int i = int((v-_minv)/_dv); 
-    //  if (i >= 0 && i < int(_weights.size())) _weights[i] += weight;
-    //}
+    add_entry_at_bin(bin(v), v, weight);
+  }
+
+  /// Fill an already computed bin, avoiding duplicate observable/bin work.
+  void add_entry_at_bin(unsigned int index, double v, double weight = 1.0) {
+    if (!std::isfinite(v) || !std::isfinite(weight))
+      throw std::invalid_argument("Nonfinite histogram value or event weight");
+    if (index >= _weights.size()) throw std::out_of_range("Histogram bin");
     _have_total = false;
-    _weights[bin(v)] += weight;
-    _weight_v += weight * v;
-    _weight_vsq += weight * v * v;
+    histogram_accumulate(weight, _weights[index], _corrections[index], _precise);
+    histogram_accumulate(weight * v, _weight_v, _weight_v_correction, _precise);
+    histogram_accumulate(weight * v * v, _weight_vsq, _weight_vsq_correction, _precise);
+    if (!std::isfinite(_weights[index]) || !std::isfinite(_corrections[index]) ||
+        !std::isfinite(_weight_v) || !std::isfinite(_weight_v_correction) ||
+        !std::isfinite(_weight_vsq) || !std::isfinite(_weight_vsq_correction))
+      throw std::overflow_error("Nonfinite histogram weight or moment accumulator");
     _n_entries += 1.0;
   };
 
   // Operations with constants ---------------------------------------
   SimpleHist & operator*=(double fact) {
-    for (unsigned i = 0; i < outflow_size(); i++) (*this)[i] *= fact;
+    _have_total = false;
+    for (unsigned i = 0; i < outflow_size(); i++) {
+      _weights[i] *= fact;
+      _corrections[i] *= fact;
+    }
     _weight_v *= fact;
     _weight_vsq *= fact;
+    _weight_v_correction *= fact;
+    _weight_vsq_correction *= fact;
     _total_weight *= fact;
     return *this;
   };
@@ -190,18 +253,25 @@ public:
 
   SimpleHist & operator+=(const SimpleHist & other) {
     assert(other.outflow_size() == outflow_size());
-    for (unsigned i = 0; i < outflow_size(); i++) (*this)[i] += other[i];
-    _weight_v += other._weight_v;
-    _weight_vsq += other._weight_vsq;
-    if (_have_total && other._have_total) {
-      _total_weight += other._total_weight;
-    } else {_have_total = false;}
+    for (unsigned i = 0; i < outflow_size(); i++) {
+      histogram_accumulate(other._weights[i], _weights[i], _corrections[i], _precise);
+      histogram_accumulate(other._corrections[i], _weights[i], _corrections[i], _precise);
+    }
+    histogram_accumulate(other._weight_v, _weight_v, _weight_v_correction, _precise);
+    histogram_accumulate(other._weight_v_correction, _weight_v, _weight_v_correction, _precise);
+    histogram_accumulate(other._weight_vsq, _weight_vsq, _weight_vsq_correction, _precise);
+    histogram_accumulate(other._weight_vsq_correction, _weight_vsq, _weight_vsq_correction, _precise);
+    _have_total = false;
     return *this;
   };
 
   SimpleHist & operator-=(const SimpleHist & other) {
     assert(other.outflow_size() == outflow_size());
-    for (unsigned i = 0; i < outflow_size(); i++) (*this)[i] -= other[i];
+    _have_total = false;
+    for (unsigned i = 0; i < outflow_size(); i++) {
+      histogram_accumulate(-other._weights[i], _weights[i], _corrections[i], _precise);
+      histogram_accumulate(-other._corrections[i], _weights[i], _corrections[i], _precise);
+    }
     return *this;
   };
 
@@ -212,8 +282,12 @@ public:
 private:
   double _minv, _maxv, _dv;
   std::valarray<double> _weights;
+  std::valarray<double> _corrections;
+  mutable std::valarray<double> _view;
+  bool _precise;
   std::string _name;
   double _weight_v, _weight_vsq;
+  double _weight_v_correction, _weight_vsq_correction;
   mutable double _total_weight;
   mutable bool   _have_total;
   double _n_entries;
@@ -225,16 +299,16 @@ private:
 inline SimpleHist operator*(const SimpleHist & hist, double fact) {
   SimpleHist result(hist.min(), hist.max(), hist.size());
   for (unsigned i = 0; i < hist.outflow_size(); i++) result[i] = hist[i] * fact;
-  result._weight_v = hist._weight_v * fact;
-  result._weight_vsq = hist._weight_vsq * fact;
+  result._weight_v = (hist._weight_v + hist._weight_v_correction) * fact;
+  result._weight_vsq = (hist._weight_vsq + hist._weight_vsq_correction) * fact;
   return result;
 }
 
 inline SimpleHist operator/(const SimpleHist & hist, double fact) {
   SimpleHist result(hist.min(), hist.max(), hist.size());
   for (unsigned i = 0; i < hist.outflow_size(); i++) result[i] = hist[i] / fact;
-  result._weight_v = hist._weight_v / fact;
-  result._weight_vsq = hist._weight_vsq / fact;
+  result._weight_v = (hist._weight_v + hist._weight_v_correction) / fact;
+  result._weight_vsq = (hist._weight_vsq + hist._weight_vsq_correction) / fact;
   return result;
 }
 
@@ -304,31 +378,33 @@ inline void output_differential(const SimpleHist & hist0,
 }
 
 /// output the cumulative histogram.
-inline void output_cumulative(const SimpleHist & hist0, 
+inline void output_cumulative(const SimpleHist & hist0,
                         std::ostream * ostr = (&std::cout),
                         double norm = 1.0) {
-  double cumul = hist0.underflow() * norm;
-  *ostr << hist0.binlo(0) << " " << cumul << std::endl;
+  double cumul = 0., correction = 0.;
+  hist0.accumulate_bin_weight(hist0.underflow_bin(), norm, cumul, correction);
+  *ostr << hist0.binlo(0) << " " << cumul + correction << std::endl;
   for (unsigned i = 0; i < hist0.size(); i++) {
-    cumul += hist0[i] * norm;
-    *ostr << hist0.binhi(i) << " " << cumul << std::endl;
+    hist0.accumulate_bin_weight(i, norm, cumul, correction);
+    *ostr << hist0.binhi(i) << " " << cumul + correction << std::endl;
   }
-  cumul += hist0.overflow() * norm;
-  *ostr << "# with_overflow " << cumul << std::endl;
+  hist0.accumulate_bin_weight(hist0.overflow_bin(), norm, cumul, correction);
+  *ostr << "# with_overflow " << cumul + correction << std::endl;
 }
 
 /// output the inverse cumulative histogram.
 inline void output_inverse_cumulative(const SimpleHist & hist0, 
                         std::ostream * ostr = (&std::cout),
                         double norm = 1.0) {
-  double cumul = hist0.overflow() * norm;
-  *ostr << hist0.binhi(hist0.size() - 1) << " " << cumul << std::endl;
+  double cumul = 0., correction = 0.;
+  hist0.accumulate_bin_weight(hist0.overflow_bin(), norm, cumul, correction);
+  *ostr << hist0.binhi(hist0.size() - 1) << " " << cumul + correction << std::endl;
   for (int i = hist0.size() - 1; i >= 0; i--) {
-    cumul += hist0[i] * norm;
-    *ostr << hist0.binlo(i) << " " << cumul << std::endl;
+    hist0.accumulate_bin_weight(i, norm, cumul, correction);
+    *ostr << hist0.binlo(i) << " " << cumul + correction << std::endl;
   }
-  cumul += hist0.underflow() * norm;
-  *ostr << "# with_underflow " << cumul << std::endl;
+  hist0.accumulate_bin_weight(hist0.underflow_bin(), norm, cumul, correction);
+  *ostr << "# with_underflow " << cumul + correction << std::endl;
 }
 // -------------------------------------------------------------------
 

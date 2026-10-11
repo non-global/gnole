@@ -4,6 +4,8 @@
 //----------------------------------------------------------------------
 /// reset shower to two jet configuration
 void Event::reset_twojet() {
+  bad = false;
+  eta_tot = 0.0;
   dipoles_.clear();
   Momentum q (0.0, 0.0, -0.5, 0.5);
   Momentum qb(0.0, 0.0,  0.5, 0.5);
@@ -20,12 +22,14 @@ void Event::reset_twojet() {
 //----------------------------------------------------------------------
 // reset shower to three jet configuration and return lnkt
 double Event::reset_threejet_LL(double xmur, double xQ, double r1, double r2, double r3, Momentum& gluon) {
+  bad = false;
+  eta_tot = 0.0;
   dipoles_.clear();
   add(Dipole(DipoleEnd(Momentum(0.0,0.0,-0.5,0.5), true),
 	     DipoleEnd(Momentum(0.0,0.0, 0.5,0.5), true),
 	     -1, -1));
   eta_tot = dipoles_.back().delta_rap();
-  double asmur = alphas2(xmur);
+  double asmur = coupling_cached_ ? cached_coupling_ : alphas2(xmur);
   double lnkt = r1 * 1.0/(2.0*asmur*b0);
   gluon = dipoles_.back().radiate(lnkt-log(xQ), r2, r3);
   thrust_axis_= Momentum(0,0,1,1);
@@ -43,9 +47,11 @@ double Event::reset_threejet_LL(double xmur, double xQ, double r1, double r2, do
 //----------------------------------------------------------------------
 /// reset shower to three jet configuration and return lnkt, taken from Dokshitzer paper
 double Event::reset_threejet(double xmur, double xQ, double r1, double r2, double r3, Momentum& gluon, bool use_cached_variables) {
+  bad = false;
+  eta_tot = 0.0;
   dipoles_.clear();
   double jacobian = 1.0;
-  double asmur = alphas2(xmur);
+  double asmur = coupling_cached_ ? cached_coupling_ : alphas2(xmur);
   
   // angle between emission and quark 1
   //double t13;
@@ -142,7 +148,7 @@ double Event::reset_threejet(double xmur, double xQ, double r1, double r2, doubl
   }
   else weight = matelm * jacobian;
   // remove rare events that have nans
-  if (weight!=weight) {
+  if (!std::isfinite(weight)) {
     weight = 0.0;
     bad = true;
     return 0.0;
@@ -173,9 +179,11 @@ double Event::reset_threejet(double xmur, double xQ, double r1, double r2, doubl
 //----------------------------------------------------------------------
 /// reset shower to three jet configuration in the soft limit and return lnkt
 double Event::reset_threejet_soft(double xmur, double xQ, double r1, double r2, double r3, Momentum& gluon) {
+  bad = false;
+  eta_tot = 0.0;
   dipoles_.clear();
   double jacobian = 1.0;
-  double asmur = alphas2(xmur);
+  double asmur = coupling_cached_ ? cached_coupling_ : alphas2(xmur);
   
   // angle between emission and quark 1  
   //double t13 = M_PI*r1;
@@ -248,7 +256,7 @@ double Event::reset_threejet_soft(double xmur, double xQ, double r1, double r2, 
   }
   else weight = matelm * jacobian;
   // remove rare events that have nans
-  if (weight!=weight) {
+  if (!std::isfinite(weight)) {
     weight = 0.0;
     bad = true;
     return 0.0;
