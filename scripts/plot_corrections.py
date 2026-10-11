@@ -1,24 +1,29 @@
 #!/usr/bin/env python3
-r"""Plot four GNole correction ratios versus lambda = alpha_s * ln(Q/ET).
+r"""Plot five GNole correction ratios versus lambda = alpha_s * ln(Q/ET).
 
 Example (Matplotlib is the only plotting dependency):
   python3 plot_corrections.py --hard hard.dat --single single.dat \
-      --double double.dat --obs obs.dat --ll ll.dat --alphas 0.1 \
+      --double-gauge double_gauge.dat --double-fermion double_fermion.dat \
+      --obs obs.dat --ll ll.dat --alphas 0.1 \
       --out corrections_lambda.png
 
 Inputs are GNole output files, not raw differential histograms. Hard, single,
-double and LL use the stored lambda cumulants; obs uses the already-normalized
+double-gauge, double-fermion and LL use the stored lambda cumulants; obs uses
+the already-normalized
 lambda cumulant correction at its shifted bin centers. No integration,
 extra coupling factor, flow-bin deposit or per-file renormalization is added.
 
 The LL file is used exactly as supplied. With physical LL and SL component
-runs, the first three ratios also contain a measurement difference. Use an
+runs, the component ratios also contain a measurement difference. Use an
 LL -sl-obs file if you want a common SL baseline. Obs is a finite-bin average,
 not an exact pointwise correction. Per-file errors are not combined because
 shared-seed ratios require cross-run covariance.
 
 The script also saves the plotted values as CSV. --no-plot needs only the
 Python standard library and writes just the CSV.
+
+For existing combined-double files, --double double.dat retains the previous
+four-curve mode instead of the two split-double arguments. Do not mix modes.
 """
 import argparse
 import csv
@@ -81,18 +86,37 @@ def read_curve(path, correction=False):
             "metadata": metadata}
 
 
+def ratio_names(curves):
+    """Select split or legacy double inputs without ambiguous double counting."""
+    names = set(curves)
+    split = {"double_gauge", "double_fermion"}
+    if "double" in names:
+        if names & split:
+            raise ValueError("do not combine double with split double inputs")
+        doubles = ["double"]
+    else:
+        if not split <= names:
+            raise ValueError("supply both double_gauge and double_fermion, or legacy double alone")
+        doubles = ["double_gauge", "double_fermion"]
+    expected = {"ll", "hard", "single", "obs", *doubles}
+    if names != expected:
+        raise ValueError(f"unexpected or missing curve keys: expected {sorted(expected)}, got {sorted(names)}")
+    return ["hard", "single", *doubles, "obs"]
+
+
 def build_ratios(curves, alphas):
     """Use LL edge coordinates; do not interpolate or integrate obs."""
     if not math.isfinite(alphas) or alphas <= 0:
         raise ValueError("alphas must be finite and positive")
+    names = ratio_names(curves)
     x, baseline = curves["ll"]["x"], curves["ll"]["y"]
     for name, curve in curves.items():
-        if len(curve["x"]) != len(x) or any(
+        if len(curve["y"]) != len(x) or len(curve["x"]) != len(x) or any(
                 not math.isclose(a, b, rel_tol=1e-8, abs_tol=1e-10)
                 for a, b in zip(x, curve["x"])):
             raise ValueError(f"{name}: lambda grid does not match LL")
     ratios = {"lambda": x}
-    for name in ("hard", "single", "double", "obs"):
+    for name in names:
         ratios[name] = [
             ((value - ll) if name != "obs" else value) / (ll * alphas)
             if ll > 0 else math.nan
@@ -130,8 +154,11 @@ def check_parameters(curves, alphas):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    for name in ("hard", "single", "double", "obs", "ll"):
+    for name in ("hard", "single", "obs", "ll"):
         parser.add_argument("--" + name, required=True, type=Path)
+    parser.add_argument("--double-gauge", type=Path, help="standalone gauge-double cumulant")
+    parser.add_argument("--double-fermion", type=Path, help="standalone fermion-double cumulant")
+    parser.add_argument("--double", type=Path, help="legacy combined-double cumulant; alternative to split inputs")
     parser.add_argument("--alphas", "--as", type=float,
                         help="reference alpha_s; default: input alphas(rts) header")
     parser.add_argument("--out", type=Path, default=Path("corrections_lambda.png"))
@@ -139,12 +166,16 @@ def main(argv=None):
     parser.add_argument("--no-plot", action="store_true", help="write CSV only")
     args = parser.parse_args(argv)
     try:
-        curves = {name: read_curve(getattr(args, name), correction=name == "obs")
-                  for name in ("hard", "single", "double", "obs", "ll")}
+        paths = {name: getattr(args, name) for name in (
+            "hard", "single", "double_gauge", "double_fermion", "double", "obs", "ll")
+            if getattr(args, name) is not None}
+        names = ratio_names(paths)
+        curves = {name: read_curve(path, correction=name == "obs")
+                  for name, path in paths.items()}
         alphas = check_parameters(curves, args.alphas)
         ratios = build_ratios(curves, alphas)
         csv_path = args.csv or args.out.with_suffix(".csv")
-        input_paths = {getattr(args, n).resolve() for n in curves}
+        input_paths = {path.resolve() for path in paths.values()}
         if csv_path.resolve() in input_paths or (
                 not args.no_plot and args.out.resolve() in input_paths):
             raise ValueError("output path would overwrite an input file")
@@ -166,18 +197,22 @@ def main(argv=None):
                   file=sys.stderr)
         if not curves["ll"]["metadata"]["_sl_observable"] and any(
                 curves[n]["metadata"]["_sl_observable"]
-                for n in ("hard", "single", "double")):
+                for n in names if n != "obs"):
             print("Warning: physical LL versus SL components; preserving the "
                   "requested ratios, which also include a measurement difference.",
                   file=sys.stderr)
         if not args.no_plot:
             fig, ax = plt.subplots(figsize=(7.2, 4.8))
-            for name, label in (
-                    ("hard", r"$(\mathrm{hard}-\mathrm{LL})/(\alpha_s\,\mathrm{LL})$"),
-                    ("single", r"$(\mathrm{single}-\mathrm{LL})/(\alpha_s\,\mathrm{LL})$"),
-                    ("double", r"$(\mathrm{double}-\mathrm{LL})/(\alpha_s\,\mathrm{LL})$"),
-                    ("obs", r"$\mathrm{obs}/(\alpha_s\,\mathrm{LL})$")):
-                ax.plot(ratios["lambda"], ratios[name], "o-", label=label,
+            labels = {
+                "hard": r"$(\mathrm{hard}-\mathrm{LL})/(\alpha_s\,\mathrm{LL})$",
+                "single": r"$(\mathrm{single}-\mathrm{LL})/(\alpha_s\,\mathrm{LL})$",
+                "double": r"$(\mathrm{double}-\mathrm{LL})/(\alpha_s\,\mathrm{LL})$",
+                "double_gauge": r"$(\mathrm{double}_{\rm gauge}-\mathrm{LL})/(\alpha_s\,\mathrm{LL})$",
+                "double_fermion": r"$(\mathrm{double}_{\rm fermion}-\mathrm{LL})/(\alpha_s\,\mathrm{LL})$",
+                "obs": r"$\mathrm{obs}/(\alpha_s\,\mathrm{LL})$",
+            }
+            for name in names:
+                ax.plot(ratios["lambda"], ratios[name], "o-", label=labels[name],
                         markersize=4, linewidth=1.5)
             ax.axhline(0, color="0.5", linewidth=0.7)
             ax.set(xlabel=r"$\lambda=\alpha_s\ln(Q/E_T)$",

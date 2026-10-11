@@ -65,7 +65,15 @@ int main(int argc, char ** argv) try {
 
   // flag to run only the double insertion part of the calculation
   bool double_insertion_only = cmdline.present("-double-insertion-only");
-  set_double_insertion_only(double_insertion_only);
+  bool double_insertion_gauge_only = cmdline.present("-double-insertion-gauge-only")
+    .help("double-insertion gauge current only, retaining the LL baseline; requires order 1");
+  bool double_insertion_fermion_only = cmdline.present("-double-insertion-fermion-only")
+    .help("double-insertion fermion current only, retaining the LL baseline; requires order 1");
+  bool double_insertion_requested = double_insertion_only ||
+    double_insertion_gauge_only || double_insertion_fermion_only;
+  set_double_insertion_only(double_insertion_requested);
+  set_double_insertion_gauge_only(double_insertion_gauge_only);
+  set_double_insertion_fermion_only(double_insertion_fermion_only);
 
   // flag to perform NLO matching to QCD
   bool matching = cmdline.present("-matching");
@@ -121,15 +129,20 @@ int main(int argc, char ** argv) try {
 
   // Reject combinations which would silently select a different calculation.
   if (obs_correction_only &&
-      (order != 0 || matching || hard_only || single_insertion_only || double_insertion_only))
+      (order != 0 || matching || hard_only || single_insertion_only || double_insertion_requested))
     throw CmdLine::Error("-obs-correction-only requires -order 0, without matching or NLL component selectors");
   if (obs_correction_only && variance.adaptive_insertion)
     throw CmdLine::Error("-adaptive-insertion is not used in LL observable-correction mode");
-  int selectors = int(hard_only) + int(single_insertion_only) + int(double_insertion_only);
+  int selectors = int(hard_only) + int(single_insertion_only) + int(double_insertion_only) +
+                  int(double_insertion_gauge_only) + int(double_insertion_fermion_only);
   if (selectors > 1 || (selectors && order != 1))
     throw CmdLine::Error("Use at most one component selector, with -order 1");
-  if (matching && (order != 1 || single_insertion_only || double_insertion_only))
+  if (matching && (order != 1 || single_insertion_only || double_insertion_requested))
     throw CmdLine::Error("Matching requires order one and the hard contribution");
+  if (double_insertion_gauge_only)
+    header << "# double_insertion_current = gauge (LL baseline retained)" << endl;
+  if (double_insertion_fermion_only)
+    header << "# double_insertion_current = fermion (LL baseline retained)" << endl;
   if (matching && sl_observable)
     header << "# matching with SL measurement: endpoint deposits are not physical fixed-order transverse-energy matching" << endl;
   if (order != 0 && order != 1) throw CmdLine::Error("-order must be 0 or 1");

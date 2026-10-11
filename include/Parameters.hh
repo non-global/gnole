@@ -40,6 +40,10 @@ extern bool HARD_ONLY;
 extern bool SINGLE_INSERTION_ONLY;
 // flag to run only the double insertion contributions
 extern bool DOUBLE_INSERTION_ONLY;
+// Optional current selectors within the double-insertion calculation.
+// Each retains the same LL prefix and branch-zero contribution.
+extern bool DOUBLE_INSERTION_GAUGE_ONLY;
+extern bool DOUBLE_INSERTION_FERMION_ONLY;
 // flag to match to NLO
 extern bool MATCHING;
 // flag to compute observable in SL approximation
@@ -66,6 +70,10 @@ void set_single_insertion_only(bool single_insertion_only);
 
 // set DOUBLE_INSERTION_ONLY flag
 void set_double_insertion_only(bool double_insertion_only);
+
+// Select a current within the double-insertion execution path.
+void set_double_insertion_gauge_only(bool gauge_only);
+void set_double_insertion_fermion_only(bool fermion_only);
 
 // set MATCHING flag 
 void set_matching(bool matching);

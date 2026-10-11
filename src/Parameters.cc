@@ -28,6 +28,11 @@ void set_single_insertion_only(bool single_insertion_only) {SINGLE_INSERTION_ONL
 bool DOUBLE_INSERTION_ONLY = false;
 void set_double_insertion_only(bool double_insertion_only) {DOUBLE_INSERTION_ONLY = double_insertion_only;};
 
+bool DOUBLE_INSERTION_GAUGE_ONLY = false;
+void set_double_insertion_gauge_only(bool gauge_only) {DOUBLE_INSERTION_GAUGE_ONLY = gauge_only;}
+bool DOUBLE_INSERTION_FERMION_ONLY = false;
+void set_double_insertion_fermion_only(bool fermion_only) {DOUBLE_INSERTION_FERMION_ONLY = fermion_only;}
+
 // set MATCHING flag
 bool MATCHING = false;
 void set_matching(bool matching) {MATCHING = matching;};

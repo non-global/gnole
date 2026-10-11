@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
-"""Launch the five GNole correction samples concurrently.
+"""Launch the six GNole correction samples concurrently.
 
 Defaults reproduce the requested common settings:
   -nev 1e7 -drap 2.0 -nbins 40 -xmur 1.0 -xQ 1.0 -as 0.1
   -lnktmax 10 -etamax 3 -seed 1 -mc-errors
 
 Each process is single-threaded. The OS schedules them across available cores;
-this is not fixed CPU affinity. All five start before this script waits.
+this is not fixed CPU affinity. All six start before this script waits.
 
 Modes:
-  hard:   -order 1 -hard-only -sl-obs
-  single: -order 1 -single-insertion-only -sl-obs
-  double: -order 1 -double-insertion-only -sl-obs
-  obs:    -order 0 -obs-correction-only
-  ll:     -order 0
+  hard:           -order 1 -hard-only -sl-obs
+  single:         -order 1 -single-insertion-only -sl-obs
+  double_gauge:   -order 1 -double-insertion-gauge-only -sl-obs
+  double_fermion: -order 1 -double-insertion-fermion-only -sl-obs
+  obs:            -order 0 -obs-correction-only
+  ll:             -order 0
 
 --ll-sl adds -sl-obs only to LL, if a common SL baseline is wanted.
 Each job writes NAME.dat and NAME.log. commands.json records the exact commands
@@ -43,7 +44,8 @@ import time
 MODES = {
     "hard": ["-order", "1", "-hard-only", "-sl-obs"],
     "single": ["-order", "1", "-single-insertion-only", "-sl-obs"],
-    "double": ["-order", "1", "-double-insertion-only", "-sl-obs"],
+    "double_gauge": ["-order", "1", "-double-insertion-gauge-only", "-sl-obs"],
+    "double_fermion": ["-order", "1", "-double-insertion-fermion-only", "-sl-obs"],
     "obs": ["-order", "0", "-obs-correction-only"],
     "ll": ["-order", "0"],
 }
@@ -79,7 +81,7 @@ def main(argv=None):
     script_dir = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(description=__doc__,
                                     formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--gnole", type=Path, default=script_dir/"../bin/gnole")
+    parser.add_argument("--gnole", type=Path, default=script_dir.parent/"bin/gnole")
     parser.add_argument("--out-dir", type=Path, default=Path("correction_runs"))
     parser.add_argument("--nev", type=events, default="1e7")
     parser.add_argument("--seed", type=int, default=1)
@@ -92,7 +94,7 @@ def main(argv=None):
     parser.add_argument("--etamax", type=positive, default=3.0)
     parser.add_argument("--ll-sl", action="store_true")
     parser.add_argument("--dry-run", action="store_true",
-                        help="print the five commands without writing or launching")
+                        help="print the six commands without writing or launching")
     parser.add_argument("--overwrite", action="store_true",
                         help="allow replacement of this launcher's output/log files")
     args = parser.parse_args(argv)
@@ -176,10 +178,10 @@ def main(argv=None):
         return 1
     plot_command = [sys.executable, str(script_dir/"plot_corrections.py")]
     for name in MODES:
-        plot_command += ["--"+name, str(outdir/(name+".dat"))]
+        plot_command += ["--"+name.replace("_", "-"), str(outdir/(name+".dat"))]
     plot_command += ["--alphas", str(args.alphas), "--out",
                      str(outdir/"corrections_lambda.png")]
-    print("All five runs completed. Plot with (requires Matplotlib):\n"+
+    print("All six runs completed. Plot with (requires Matplotlib):\n"+
           shlex.join(plot_command))
     return 0
 

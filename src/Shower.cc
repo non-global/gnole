@@ -534,26 +534,30 @@ void Shower::evolve_double_insertion_corrections(double t) {
   event_.weight = insertion_base_weight_;
   perform_branch0(t_insertion, ka);
 
-  // gauge current contribution
-  event_.retrieve(event_cache_);
+  // Current selection leaves the shared LL prefix and branch zero intact.
+  // Keep each complete real/counterterm pair so its replay group always ends.
+  if (!DOUBLE_INSERTION_FERMION_ONLY) {
+    // gauge current contribution
+    event_.retrieve(event_cache_);
 
-  // branch1 = Z^{(1)} evolution double real with kta > ktb'
-  perform_branch_double_insertion(t_insertion, idipa, 1, ka);
-  event_.retrieve(event_cache_);
+    // branch1 = Z^{(1)} evolution double real with kta > ktb'
+    perform_branch_double_insertion(t_insertion, idipa, 1, ka);
+    event_.retrieve(event_cache_);
 
-  // branch2 = Z^{(1)} evolution collinear counterterm with kta > ktb'
-  perform_branch_double_insertion(t_insertion, idipa, 2, ka);
-  event_.retrieve(event_cache_);
+    // branch2 = Z^{(1)} evolution collinear counterterm with kta > ktb'
+    perform_branch_double_insertion(t_insertion, idipa, 2, ka);
+    event_.retrieve(event_cache_);
 
-  // branch3 = Z^{(1)} evolution double real with kta > ktb
-  perform_branch_double_insertion(t_insertion, idipa, 3, ka);
-  event_.retrieve(event_cache_);
+    // branch3 = Z^{(1)} evolution double real with kta > ktb
+    perform_branch_double_insertion(t_insertion, idipa, 3, ka);
+    event_.retrieve(event_cache_);
 
-  // branch4 = Z^{(1)} evolution collinear counterterm with kta > ktb
-  perform_branch_double_insertion(t_insertion, idipa, 4, ka);
+    // branch4 = Z^{(1)} evolution collinear counterterm with kta > ktb
+    perform_branch_double_insertion(t_insertion, idipa, 4, ka);
+  }
 
   // fermion current contribution
-  if (NF > 0.) {
+  if (NF > 0. && !DOUBLE_INSERTION_GAUGE_ONLY) {
     event_.retrieve(event_cache_);
     // branch1 (fermion) = Z^{(1)} evolution double real with kta > ktb'
     perform_branch_double_insertion_fermion(t_insertion, idipa, 1, ka);
